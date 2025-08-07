@@ -1,0 +1,343 @@
+#!/usr/bin/env python
+"""
+Sports Reference NFL Data CLI
+
+Command-line interface for the sportsref_nfl package.
+"""
+
+import argparse
+import sys
+import pandas as pd
+from pathlib import Path
+
+from . import Schedule, Boxscore
+from .data import StatsLoader, DraftLoader, RosterLoader, DepthChartLoader, StadiumLoader
+from .utils.names import NameUtils
+
+
+def create_argument_parser():
+    """
+    Create and configure the argument parser for the CLI interface.
+    
+    Returns:
+        argparse.ArgumentParser: Configured argument parser
+    """
+    parser = argparse.ArgumentParser(
+        description="NFL Data Scraper and Analysis Tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  sportsref-nfl schedule --start-year 2020 --end-year 2024 --elo
+  sportsref-nfl boxscore --game-id "202401070buf"
+  sportsref-nfl stats --year 2024 --position QB
+  sportsref-nfl draft --year 2024
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Schedule command
+    schedule_parser = subparsers.add_parser('schedule', help='Download NFL schedule data')
+    schedule_parser.add_argument('--start-year', type=int, required=True, help='Start year for schedule')
+    schedule_parser.add_argument('--end-year', type=int, required=True, help='End year for schedule')
+    schedule_parser.add_argument('--elo', action='store_true', help='Include ELO calculations')
+    schedule_parser.add_argument('--playoffs', action='store_true', help='Include playoff games')
+    schedule_parser.add_argument('--output', type=str, help='Output CSV file path')
+    
+    # Boxscore command
+    boxscore_parser = subparsers.add_parser('boxscore', help='Get boxscore data for a specific game')
+    boxscore_parser.add_argument('--game-id', type=str, required=True, help='Game ID (e.g., 202401070buf)')
+    boxscore_parser.add_argument('--output', type=str, help='Output CSV file path')
+    
+    # Stats command
+    stats_parser = subparsers.add_parser('stats', help='Download player statistics')
+    stats_parser.add_argument('--year', type=int, required=True, help='Season year')
+    stats_parser.add_argument('--position', type=str, choices=['QB', 'RB', 'WR', 'TE', 'K', 'DST'], 
+                             help='Position to filter by')
+    stats_parser.add_argument('--output', type=str, help='Output CSV file path')
+    
+    # Draft command
+    draft_parser = subparsers.add_parser('draft', help='Download NFL draft data')
+    draft_parser.add_argument('--year', type=int, required=True, help='Draft year')
+    draft_parser.add_argument('--output', type=str, help='Output CSV file path')
+    
+    # Rosters command
+    roster_parser = subparsers.add_parser('rosters', help='Download team rosters')
+    roster_parser.add_argument('--year', type=int, required=True, help='Season year')
+    roster_parser.add_argument('--team', type=str, help='Specific team abbreviation')
+    roster_parser.add_argument('--output', type=str, help='Output CSV file path')
+    
+    # Depth charts command
+    depth_parser = subparsers.add_parser('depth-charts', help='Download team depth charts')
+    depth_parser.add_argument('--year', type=int, required=True, help='Season year')
+    depth_parser.add_argument('--team', type=str, help='Specific team abbreviation')
+    depth_parser.add_argument('--output', type=str, help='Output CSV file path')
+    
+    # Stadiums command
+    stadium_parser = subparsers.add_parser('stadiums', help='Download stadium information')
+    stadium_parser.add_argument('--output', type=str, help='Output CSV file path')
+    
+    # Name utilities command
+    names_parser = subparsers.add_parser('names', help='Player name utilities')
+    names_parser.add_argument('--normalize', type=str, help='Normalize a player name')
+    names_parser.add_argument('--match', type=str, nargs=2, metavar=('NAME1', 'NAME2'), 
+                             help='Check if two names match')
+    
+    # Global options
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--version', action='version', version=f'sportsref-nfl {get_version()}')
+    
+    return parser
+
+
+def get_version():
+    """Get the package version."""
+    try:
+        from . import __version__
+        return __version__
+    except ImportError:
+        return "unknown"
+
+
+def handle_schedule_command(args):
+    """Handle the schedule command."""
+    if args.verbose:
+        print(f"Loading NFL schedule from {args.start_year} to {args.end_year}...")
+    
+    schedule = Schedule(
+        start_year=args.start_year,
+        end_year=args.end_year,
+        playoffs=args.playoffs,
+        elo=args.elo,
+        verbose=args.verbose
+    )
+    
+    output_path = args.output or f"nfl_schedule_{args.start_year}_{args.end_year}.csv"
+    schedule.schedule.to_csv(output_path, index=False)
+    
+    print(f"Schedule data saved to: {output_path}")
+    print(f"Total games: {len(schedule.schedule)}")
+    
+    if args.elo:
+        print("ELO calculations included")
+
+
+def handle_boxscore_command(args):
+    """Handle the boxscore command."""
+    if args.verbose:
+        print(f"Loading boxscore for game: {args.game_id}")
+    
+    try:
+        boxscore = Boxscore(args.game_id)
+        
+        # Create a summary DataFrame
+        summary_data = {
+            'game_id': [args.game_id],
+            'date': [boxscore.date],
+            'away_team': [boxscore.away_team],
+            'home_team': [boxscore.home_team],
+            'away_score': [boxscore.away_score],
+            'home_score': [boxscore.home_score]
+        }
+        summary_df = pd.DataFrame(summary_data)
+        
+        output_path = args.output or f"boxscore_{args.game_id}.csv"
+        summary_df.to_csv(output_path, index=False)
+        
+        print(f"Boxscore data saved to: {output_path}")
+        print(f"Game: {boxscore.away_team} @ {boxscore.home_team}")
+        print(f"Score: {boxscore.away_score} - {boxscore.home_score}")
+        
+    except Exception as e:
+        print(f"Error loading boxscore: {e}")
+        sys.exit(1)
+
+
+def handle_stats_command(args):
+    """Handle the stats command."""
+    if args.verbose:
+        print(f"Loading {args.year} player statistics...")
+    
+    try:
+        stats_loader = StatsLoader()
+        
+        if args.position:
+            stats_df = stats_loader.load_position_stats(args.year, args.position)
+            output_suffix = f"_{args.position.lower()}"
+        else:
+            stats_df = stats_loader.load_all_stats(args.year)
+            output_suffix = "_all"
+        
+        output_path = args.output or f"nfl_stats_{args.year}{output_suffix}.csv"
+        stats_df.to_csv(output_path, index=False)
+        
+        print(f"Stats data saved to: {output_path}")
+        print(f"Total players: {len(stats_df)}")
+        
+    except Exception as e:
+        print(f"Error loading stats: {e}")
+        sys.exit(1)
+
+
+def handle_draft_command(args):
+    """Handle the draft command."""
+    if args.verbose:
+        print(f"Loading {args.year} NFL draft data...")
+    
+    try:
+        draft_loader = DraftLoader()
+        draft_df = draft_loader.load_draft_data(args.year)
+        
+        output_path = args.output or f"nfl_draft_{args.year}.csv"
+        draft_df.to_csv(output_path, index=False)
+        
+        print(f"Draft data saved to: {output_path}")
+        print(f"Total picks: {len(draft_df)}")
+        
+    except Exception as e:
+        print(f"Error loading draft data: {e}")
+        sys.exit(1)
+
+
+def handle_rosters_command(args):
+    """Handle the rosters command."""
+    if args.verbose:
+        print(f"Loading {args.year} team rosters...")
+    
+    try:
+        roster_loader = RosterLoader()
+        
+        if args.team:
+            roster_df = roster_loader.load_team_roster(args.year, args.team)
+            output_suffix = f"_{args.team.lower()}"
+        else:
+            roster_df = roster_loader.load_all_rosters(args.year)
+            output_suffix = "_all"
+        
+        output_path = args.output or f"nfl_rosters_{args.year}{output_suffix}.csv"
+        roster_df.to_csv(output_path, index=False)
+        
+        print(f"Roster data saved to: {output_path}")
+        print(f"Total players: {len(roster_df)}")
+        
+    except Exception as e:
+        print(f"Error loading roster data: {e}")
+        sys.exit(1)
+
+
+def handle_depth_charts_command(args):
+    """Handle the depth charts command."""
+    if args.verbose:
+        print(f"Loading {args.year} depth charts...")
+    
+    try:
+        depth_loader = DepthChartLoader()
+        
+        if args.team:
+            depth_df = depth_loader.load_team_depth_chart(args.year, args.team)
+            output_suffix = f"_{args.team.lower()}"
+        else:
+            depth_df = depth_loader.load_all_depth_charts(args.year)
+            output_suffix = "_all"
+        
+        output_path = args.output or f"nfl_depth_charts_{args.year}{output_suffix}.csv"
+        depth_df.to_csv(output_path, index=False)
+        
+        print(f"Depth chart data saved to: {output_path}")
+        print(f"Total entries: {len(depth_df)}")
+        
+    except Exception as e:
+        print(f"Error loading depth chart data: {e}")
+        sys.exit(1)
+
+
+def handle_stadiums_command(args):
+    """Handle the stadiums command."""
+    if args.verbose:
+        print("Loading stadium information...")
+    
+    try:
+        stadium_loader = StadiumLoader()
+        stadium_df = stadium_loader.load_stadiums()
+        
+        output_path = args.output or "nfl_stadiums.csv"
+        stadium_df.to_csv(output_path, index=False)
+        
+        print(f"Stadium data saved to: {output_path}")
+        print(f"Total stadiums: {len(stadium_df)}")
+        
+    except Exception as e:
+        print(f"Error loading stadium data: {e}")
+        sys.exit(1)
+
+
+def handle_names_command(args):
+    """Handle the names command."""
+    name_utils = NameUtils()
+    
+    if args.normalize:
+        normalized = name_utils.normalize_name(args.normalize)
+        print(f"Original: {args.normalize}")
+        print(f"Normalized: {normalized}")
+    
+    elif args.match:
+        name1, name2 = args.match
+        is_match = name_utils.names_match(name1, name2)
+        print(f"Name 1: {name1}")
+        print(f"Name 2: {name2}")
+        print(f"Match: {'Yes' if is_match else 'No'}")
+    
+    else:
+        print("Please specify --normalize or --match option")
+
+
+def main():
+    """
+    Main entry point for the sportsref-nfl CLI.
+    """
+    parser = create_argument_parser()
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    if args.verbose:
+        print("NFL Data Scraper and Analysis Tool")
+        print("=" * 35)
+    
+    try:
+        # Route to appropriate command handler
+        if args.command == 'schedule':
+            handle_schedule_command(args)
+        elif args.command == 'boxscore':
+            handle_boxscore_command(args)
+        elif args.command == 'stats':
+            handle_stats_command(args)
+        elif args.command == 'draft':
+            handle_draft_command(args)
+        elif args.command == 'rosters':
+            handle_rosters_command(args)
+        elif args.command == 'depth-charts':
+            handle_depth_charts_command(args)
+        elif args.command == 'stadiums':
+            handle_stadiums_command(args)
+        elif args.command == 'names':
+            handle_names_command(args)
+        else:
+            print(f"Unknown command: {args.command}")
+            sys.exit(1)
+    
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
