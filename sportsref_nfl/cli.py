@@ -11,8 +11,8 @@ import pandas as pd
 from pathlib import Path
 
 from . import Schedule, Boxscore
-from .data import StatsLoader, DraftLoader, RosterLoader, DepthChartLoader, StadiumLoader
-from .utils.names import NameUtils
+from .data import stats, draft, rosters, depth_charts, stadiums
+from .utils import names
 
 
 def create_argument_parser():
@@ -159,13 +159,21 @@ def handle_stats_command(args):
         print(f"Loading {args.year} player statistics...")
     
     try:
-        stats_loader = StatsLoader()
+        # Use the actual get_bulk_stats function
+        # For simplicity, get full season stats (week 1-18)
+        stats_df = stats.get_bulk_stats(
+            start_season=args.year,
+            start_week=1,
+            finish_season=args.year,
+            finish_week=18,
+            playoffs=True
+        )
         
-        if args.position:
-            stats_df = stats_loader.load_position_stats(args.year, args.position)
+        # Filter by position if specified
+        if args.position and 'position' in stats_df.columns:
+            stats_df = stats_df[stats_df['position'] == args.position]
             output_suffix = f"_{args.position.lower()}"
         else:
-            stats_df = stats_loader.load_all_stats(args.year)
             output_suffix = "_all"
         
         output_path = args.output or f"nfl_stats_{args.year}{output_suffix}.csv"
@@ -185,8 +193,7 @@ def handle_draft_command(args):
         print(f"Loading {args.year} NFL draft data...")
     
     try:
-        draft_loader = DraftLoader()
-        draft_df = draft_loader.load_draft_data(args.year)
+        draft_df = draft.get_draft(args.year)
         
         output_path = args.output or f"nfl_draft_{args.year}.csv"
         draft_df.to_csv(output_path, index=False)
@@ -205,13 +212,11 @@ def handle_rosters_command(args):
         print(f"Loading {args.year} team rosters...")
     
     try:
-        roster_loader = RosterLoader()
-        
         if args.team:
-            roster_df = roster_loader.load_team_roster(args.year, args.team)
+            roster_df = rosters.get_roster(args.team, args.year)
             output_suffix = f"_{args.team.lower()}"
         else:
-            roster_df = roster_loader.load_all_rosters(args.year)
+            roster_df = rosters.get_bulk_rosters(args.year)
             output_suffix = "_all"
         
         output_path = args.output or f"nfl_rosters_{args.year}{output_suffix}.csv"
@@ -231,13 +236,11 @@ def handle_depth_charts_command(args):
         print(f"Loading {args.year} depth charts...")
     
     try:
-        depth_loader = DepthChartLoader()
-        
         if args.team:
-            depth_df = depth_loader.load_team_depth_chart(args.year, args.team)
+            depth_df = depth_charts.get_depth_chart(args.team, args.year)
             output_suffix = f"_{args.team.lower()}"
         else:
-            depth_df = depth_loader.load_all_depth_charts(args.year)
+            depth_df = depth_charts.get_all_depth_charts(args.year)
             output_suffix = "_all"
         
         output_path = args.output or f"nfl_depth_charts_{args.year}{output_suffix}.csv"
@@ -257,8 +260,7 @@ def handle_stadiums_command(args):
         print("Loading stadium information...")
     
     try:
-        stadium_loader = StadiumLoader()
-        stadium_df = stadium_loader.load_stadiums()
+        stadium_df = stadiums.get_stadiums()
         
         output_path = args.output or "nfl_stadiums.csv"
         stadium_df.to_csv(output_path, index=False)
@@ -273,16 +275,19 @@ def handle_stadiums_command(args):
 
 def handle_names_command(args):
     """Handle the names command."""
-    name_utils = NameUtils()
-    
     if args.normalize:
-        normalized = name_utils.normalize_name(args.normalize)
+        name_list = names.get_names([args.normalize])
+        if name_list:
+            normalized = name_list[0] if name_list else args.normalize
+        else:
+            normalized = args.normalize
         print(f"Original: {args.normalize}")
         print(f"Normalized: {normalized}")
     
     elif args.match:
         name1, name2 = args.match
-        is_match = name_utils.names_match(name1, name2)
+        # Simple comparison for now
+        is_match = name1.lower().strip() == name2.lower().strip()
         print(f"Name 1: {name1}")
         print(f"Name 2: {name2}")
         print(f"Match: {'Yes' if is_match else 'No'}")
