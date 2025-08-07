@@ -6,14 +6,21 @@ calculating ELO ratings, and managing team travel/rest data.
 """
 
 import datetime
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 from geopy.distance import geodesic
 
-from .scraper import get_page, parse_table
-from ..data.stadiums import get_intl_games, get_team_stadium, get_game_stadium, get_address
-from ..data.stadiums import download_zip_codes, get_coordinates
 from ..data.qb_elos import get_qb_elos
+from ..data.stadiums import (
+    download_zip_codes,
+    get_address,
+    get_coordinates,
+    get_game_stadium,
+    get_intl_games,
+    get_team_stadium,
+)
+from .scraper import get_page, parse_table
 
 
 class Schedule:
@@ -25,7 +32,14 @@ class Schedule:
         schedule: dataframe containing matchup details for the seasons of interest.
     """
 
-    def __init__(self, start: int, finish: int, playoffs: bool = True, elo: bool = False, qbelo: bool = False):
+    def __init__(
+        self,
+        start: int,
+        finish: int,
+        playoffs: bool = True,
+        elo: bool = False,
+        qbelo: bool = False,
+    ):
         """
         Initializes a Schedule object using the parameters provided and class functions defined below.
 
@@ -65,24 +79,44 @@ class Schedule:
         """
         self.schedule = pd.DataFrame(columns=["season"])
         for season in range(int(start), int(finish) + 1):
-            raw_text = get_page("years/{}/games.htm".format(season))
+            raw_text = get_page(f"years/{season}/games.htm")
             season_sched = parse_table(raw_text, "games")
-            season_sched.week_num = season_sched.week_num.astype(str).str.split('.').str[0]
-            season_sched = season_sched.loc[~season_sched.week_num.astype(str).str.startswith('Pre')].reset_index(drop=True)
-            season_sched['season'] = season
-            if "game_date" not in season_sched.columns: # Current season
-                season_sched['game_date'] = season_sched.boxscore_word + ', ' + \
-                (datetime.datetime.now().year + season_sched.boxscore_word.str.startswith('January').astype(int)).astype(str)
-                season_sched = season_sched.rename(columns={'visitor_team':'winner',\
-                'visitor_team_abbrev':'winner_abbrev','home_team':'loser','home_team_abbrev':'loser_abbrev'})
-                season_sched[['yards_win','to_win','yards_lose','to_lose']] = None
+            season_sched.week_num = (
+                season_sched.week_num.astype(str).str.split(".").str[0]
+            )
+            season_sched = season_sched.loc[
+                ~season_sched.week_num.astype(str).str.startswith("Pre")
+            ].reset_index(drop=True)
+            season_sched["season"] = season
+            if "game_date" not in season_sched.columns:  # Current season
+                season_sched["game_date"] = (
+                    season_sched.boxscore_word
+                    + ", "
+                    + (
+                        datetime.datetime.now().year
+                        + season_sched.boxscore_word.str.startswith("January").astype(
+                            int
+                        )
+                    ).astype(str)
+                )
+                season_sched = season_sched.rename(
+                    columns={
+                        "visitor_team": "winner",
+                        "visitor_team_abbrev": "winner_abbrev",
+                        "home_team": "loser",
+                        "home_team_abbrev": "loser_abbrev",
+                    }
+                )
+                season_sched[["yards_win", "to_win", "yards_lose", "to_lose"]] = None
             self.schedule = pd.concat([self.schedule, season_sched], ignore_index=True)
 
     def add_weeks(self):
         """
         Infers season week based on game dates for each season.
         """
-        self.schedule.game_date = pd.to_datetime(self.schedule.game_date, format="mixed")
+        self.schedule.game_date = pd.to_datetime(
+            self.schedule.game_date, format="mixed"
+        )
         min_date = self.schedule.groupby("season").game_date.min().reset_index()
         self.schedule = pd.merge(
             left=self.schedule,
@@ -96,23 +130,38 @@ class Schedule:
         ).dt.days
         self.schedule["week"] = self.schedule.days_into_season // 7 + 1
         # NFL scheduled 2024 Christmas games on a Wednesday... Why...
-        mismatch = (self.schedule.week_num != self.schedule.week.astype(str)) & self.schedule.week_num.str.isnumeric()
-        self.schedule.loc[mismatch,"week"] = self.schedule.loc[mismatch,"week_num"].astype(int)
+        mismatch = (
+            self.schedule.week_num != self.schedule.week.astype(str)
+        ) & self.schedule.week_num.str.isnumeric()
+        self.schedule.loc[mismatch, "week"] = self.schedule.loc[
+            mismatch, "week_num"
+        ].astype(int)
 
     def convert_to_home_away(self):
         """
         Converts winner/loser syntax of Pro Football Reference schedules into home/away.
         """
-        list1 = ["team1","team1_abbrev","score1","yards1","timeouts1"]
-        list2 = ["team2","team2_abbrev","score2","yards2","timeouts2"]
-        winner_list = ["winner","winner_abbrev","pts_win","yards_win","to_win"]
-        loser_list = ["loser","loser_abbrev","pts_lose","yards_lose","to_lose"]
+        list1 = ["team1", "team1_abbrev", "score1", "yards1", "timeouts1"]
+        list2 = ["team2", "team2_abbrev", "score2", "yards2", "timeouts2"]
+        winner_list = ["winner", "winner_abbrev", "pts_win", "yards_win", "to_win"]
+        loser_list = ["loser", "loser_abbrev", "pts_lose", "yards_lose", "to_lose"]
         home_loser = self.schedule.game_location == "@"
-        self.schedule.loc[home_loser, list1] = self.schedule.loc[home_loser, loser_list].values
-        self.schedule.loc[home_loser, list2] = self.schedule.loc[home_loser, winner_list].values
-        away_loser = self.schedule.game_location.isnull() | self.schedule.game_location.isin(["N"])
-        self.schedule.loc[away_loser, list1] = self.schedule.loc[away_loser, winner_list].values
-        self.schedule.loc[away_loser, list2] = self.schedule.loc[away_loser, loser_list].values
+        self.schedule.loc[home_loser, list1] = self.schedule.loc[
+            home_loser, loser_list
+        ].values
+        self.schedule.loc[home_loser, list2] = self.schedule.loc[
+            home_loser, winner_list
+        ].values
+        away_loser = (
+            self.schedule.game_location.isnull()
+            | self.schedule.game_location.isin(["N"])
+        )
+        self.schedule.loc[away_loser, list1] = self.schedule.loc[
+            away_loser, winner_list
+        ].values
+        self.schedule.loc[away_loser, list2] = self.schedule.loc[
+            away_loser, loser_list
+        ].values
 
     def mark_intl_games(self):
         """
@@ -183,8 +232,10 @@ class Schedule:
         zips = download_zip_codes()
         for box in self.schedule.loc[neutral, "boxscore_abbrev"]:
             stadium_id = get_game_stadium(box)
-            if stadium_id in ["","attendance"]:
-                stad_name = self.schedule.loc[self.schedule.boxscore_abbrev == box,"Stadium"].values[0]
+            if stadium_id in ["", "attendance"]:
+                stad_name = self.schedule.loc[
+                    self.schedule.boxscore_abbrev == box, "Stadium"
+                ].values[0]
                 intl_stads = {
                     "Wembley Stadium": "LON00",
                     "Tottenham Hotspur Stadium": "LON02",
@@ -199,9 +250,9 @@ class Schedule:
                     stadium_id = intl_stads[stad_name]
             address = get_address(stadium_id)
             coords = get_coordinates(address, zips)
-            self.schedule.loc[
-                self.schedule.boxscore_abbrev == box, "game_coords"
-            ] = coords
+            self.schedule.loc[self.schedule.boxscore_abbrev == box, "game_coords"] = (
+                coords
+            )
         del self.schedule["Stadium"]
         self.schedule.game_coords = self.schedule.game_coords.str.split(",")
 
@@ -214,7 +265,8 @@ class Schedule:
                 "coords" + str(team)
             ].str.split(",")
             self.schedule["travel" + str(team)] = self.schedule.apply(
-                lambda x: geodesic(x["coords" + str(team)], x["game_coords"]).mi, axis=1
+                lambda x, t=team: geodesic(x["coords" + str(t)], x["game_coords"]).mi,
+                axis=1,
             )
 
     def add_rest(self):
@@ -243,7 +295,7 @@ class Schedule:
             ] = True
         self.schedule.rested1 = self.schedule.rested1.astype(bool).fillna(False)
         self.schedule.rested2 = self.schedule.rested2.astype(bool).fillna(False)
-    
+
     def add_elo_columns(self, qbelo: bool = False):
         """
         Adds the necessary columns for elo projections throughout the schedule.
@@ -251,106 +303,183 @@ class Schedule:
         Args:
             qbelo: whether to infer QB elo values, defaults to False.
         """
-        self.schedule[['elo1_pre','elo2_pre','elo1_post','elo2_post','elo_diff',\
-        'point_spread','elo_prob1','elo_prob2','score_diff','forecast_delta',\
-        'mov_multiplier','elo_delta']] = None
+        self.schedule[
+            [
+                "elo1_pre",
+                "elo2_pre",
+                "elo1_post",
+                "elo2_post",
+                "elo_diff",
+                "point_spread",
+                "elo_prob1",
+                "elo_prob2",
+                "score_diff",
+                "forecast_delta",
+                "mov_multiplier",
+                "elo_delta",
+            ]
+        ] = None
         if qbelo:
-            qb_elos = get_qb_elos(self.schedule.season.min(),self.schedule.season.max(), 
-                                 schedule_data=self.schedule)
-            for team_num in ['1','2']:
-                self.schedule = pd.merge(left=self.schedule,right=qb_elos\
-                .rename(columns={'game_id':'boxscore_abbrev','team':'team{}_abbrev'.format(team_num),\
-                'player':'qb' + team_num,'team_qbvalue_avg':'team{}_qbvalue_avg'.format(team_num),\
-                'opp_qbvalue_avg':'opp{}_qbvalue_avg'.format(team_num),\
-                'qb_value_pre':'qb{}_value_pre'.format(team_num),'qb_adj':'qb{}_adj'.format(team_num),\
-                'qb_value_post':'qb{}_value_post'.format(team_num),'VALUE':'VALUE{}'.format(team_num)}),\
-                how='inner',on=['boxscore_abbrev','team{}_abbrev'.format(team_num)])
+            qb_elos = get_qb_elos(
+                self.schedule.season.min(),
+                self.schedule.season.max(),
+                schedule_data=self.schedule,
+            )
+            for team_num in ["1", "2"]:
+                self.schedule = pd.merge(
+                    left=self.schedule,
+                    right=qb_elos.rename(
+                        columns={
+                            "game_id": "boxscore_abbrev",
+                            "team": f"team{team_num}_abbrev",
+                            "player": "qb" + team_num,
+                            "team_qbvalue_avg": f"team{team_num}_qbvalue_avg",
+                            "opp_qbvalue_avg": f"opp{team_num}_qbvalue_avg",
+                            "qb_value_pre": f"qb{team_num}_value_pre",
+                            "qb_adj": f"qb{team_num}_adj",
+                            "qb_value_post": f"qb{team_num}_value_post",
+                            "VALUE": f"VALUE{team_num}",
+                        }
+                    ),
+                    how="inner",
+                    on=["boxscore_abbrev", f"team{team_num}_abbrev"],
+                )
 
     def next_init_elo(self, init_elo: float = 1300.0, regress_pct: float = 0.333):
         """
-        Identifies the next matchup that does not have complete elo projections 
+        Identifies the next matchup that does not have complete elo projections
         and calculates each team's starting elo rating based on 538's model (#RIP).
 
         Args:
-            init_elo: initial elo rating to provide new teams with, defaults to 1300.  
+            init_elo: initial elo rating to provide new teams with, defaults to 1300.
             regress_pct: percentage to regress teams back to the mean between each season, defaults to 0.333.
         """
         ind = self.schedule.loc[self.schedule.elo1_pre.isnull()].index[0]
-        for team_num in ['1','2']:
-            team = self.schedule.loc[ind,'team{}_abbrev'.format(team_num)]
+        for team_num in ["1", "2"]:
+            team = self.schedule.loc[ind, f"team{team_num}_abbrev"]
             prev = self.schedule.iloc[:ind].copy()
             prev = prev.loc[(prev.team1_abbrev == team) | (prev.team2_abbrev == team)]
             if prev.shape[0] > 0:
                 # Team already exists
                 prev = prev.iloc[-1]
-                prev_num = 1 if prev['team1_abbrev'] == team else 2
-                if not pd.isnull(prev['elo{}_post'.format(prev_num)]):
-                    self.schedule.loc[ind,'elo{}_pre'.format(team_num)] = prev['elo{}_post'.format(prev_num)]
-                    if prev['season'] == self.schedule.loc[ind,'season'] - 1:
+                prev_num = 1 if prev["team1_abbrev"] == team else 2
+                if not pd.isnull(prev[f"elo{prev_num}_post"]):
+                    self.schedule.loc[ind, f"elo{team_num}_pre"] = prev[
+                        f"elo{prev_num}_post"
+                    ]
+                    if prev["season"] == self.schedule.loc[ind, "season"] - 1:
                         # Start of a new season
-                        self.schedule.loc[ind,'elo{}_pre'.format(team_num)] += (1505 - prev['elo{}_post'.format(prev_num)])*regress_pct
-                    elif prev['season'] < self.schedule.loc[ind,'season'] - 1:
+                        self.schedule.loc[ind, f"elo{team_num}_pre"] += (
+                            1505 - prev[f"elo{prev_num}_post"]
+                        ) * regress_pct
+                    elif prev["season"] < self.schedule.loc[ind, "season"] - 1:
                         # Resurrected teams (e.g. 1999 Cleveland Browns)
-                        self.schedule.loc[ind,'elo{}_pre'.format(team_num)] = init_elo
+                        self.schedule.loc[ind, f"elo{team_num}_pre"] = init_elo
                 else:
                     # Game hasn't been played yet...
-                    self.schedule.loc[ind,'elo{}_pre'.format(team_num)] = prev['elo{}_pre'.format(prev_num)]
+                    self.schedule.loc[ind, f"elo{team_num}_pre"] = prev[
+                        f"elo{prev_num}_pre"
+                    ]
             else:
                 # New Team
-                self.schedule.loc[ind,'elo{}_pre'.format(team_num)] = init_elo
-            if 'qb{}_adj'.format(team_num) in self.schedule.columns:
-                self.schedule.loc[ind,'qbelo{}_pre'.format(team_num)] = \
-                self.schedule.loc[ind,'elo{}_pre'.format(team_num)] + \
-                self.schedule.loc[ind,'qb{}_adj'.format(team_num)]
-    
-    def next_elo_prob(self, homefield: float = 48.0, travel: float = 0.004, rested: float = 25.0, playoffs: float = 1.2, elo2points: float = 0.04):
+                self.schedule.loc[ind, f"elo{team_num}_pre"] = init_elo
+            if f"qb{team_num}_adj" in self.schedule.columns:
+                self.schedule.loc[ind, f"qbelo{team_num}_pre"] = (
+                    self.schedule.loc[ind, f"elo{team_num}_pre"]
+                    + self.schedule.loc[ind, f"qb{team_num}_adj"]
+                )
+
+    def next_elo_prob(
+        self,
+        homefield: float = 48.0,
+        travel: float = 0.004,
+        rested: float = 25.0,
+        playoffs: float = 1.2,
+        elo2points: float = 0.04,
+    ):
         """
-        Identifies the next matchup that does not have complete elo projections 
+        Identifies the next matchup that does not have complete elo projections
         and calculates each team's win probability based on 538's model (#RIP).
 
         Args:
-            homefield: elo rating boost for home-field advantage, defaults to 48.  
-            travel: elo rating penalty for travel, defaults to 0.004 per mile traveled.  
-            rested: elo rating boost for rested teams, defaults to 25.  
-            playoffs: elo rating expansion in the playoffs, defaults to 1.2.  
+            homefield: elo rating boost for home-field advantage, defaults to 48.
+            travel: elo rating penalty for travel, defaults to 0.004 per mile traveled.
+            rested: elo rating boost for rested teams, defaults to 25.
+            playoffs: elo rating expansion in the playoffs, defaults to 1.2.
             elo2points: conversion rate between elo and points, defaults to 0.04.
         """
         ind = self.schedule.loc[self.schedule.elo_prob1.isnull()].index[0]
-        self.schedule.loc[ind,'elo_diff'] = self.schedule.loc[ind,'elo1_pre'] - self.schedule.loc[ind,'elo2_pre']
-        self.schedule.loc[ind,'elo_diff'] += homefield # Homefield advantage
-        self.schedule.loc[ind,'elo_diff'] += travel*(self.schedule.loc[ind,'travel2'] - self.schedule.loc[ind,'travel1']) # Travel
-        if self.schedule.loc[ind,'rested1']:
-            self.schedule.loc[ind,'elo_diff'] += rested # Bye week
-        if self.schedule.loc[ind,'rested2']:
-            self.schedule.loc[ind,'elo_diff'] -= rested # Bye week
-        if not self.schedule.loc[ind,'week_num'].isnumeric():
-            self.schedule.loc[ind,'elo_diff'] *= playoffs # Playoffs
-        self.schedule.loc[ind,'point_spread'] = self.schedule.loc[ind,'elo_diff']*elo2points
-        self.schedule.loc[ind,'elo_prob1'] = 1/(10**(self.schedule.loc[ind,'elo_diff']/-400) + 1)
-        self.schedule.loc[ind,'elo_prob2'] = 1 - self.schedule.loc[ind,'elo_prob1']
-        if 'qb1_adj' in self.schedule.columns and 'qb2_adj' in self.schedule.columns:
-            self.schedule.loc[ind,'qbelo_diff'] = self.schedule.loc[ind,'elo_diff'] + \
-            self.schedule.loc[ind,'qb1_adj'] - self.schedule.loc[ind,'qb2_adj']
-            self.schedule.loc[ind,'qbpoint_spread'] = self.schedule.loc[ind,'qbelo_diff']*elo2points
-            self.schedule.loc[ind,'qbelo_prob1'] = 1/(10**(self.schedule.loc[ind,'qbelo_diff']/-400) + 1)
-            self.schedule.loc[ind,'qbelo_prob2'] = 1 - self.schedule.loc[ind,'qbelo_prob1']
+        self.schedule.loc[ind, "elo_diff"] = (
+            self.schedule.loc[ind, "elo1_pre"] - self.schedule.loc[ind, "elo2_pre"]
+        )
+        self.schedule.loc[ind, "elo_diff"] += homefield  # Homefield advantage
+        self.schedule.loc[ind, "elo_diff"] += travel * (
+            self.schedule.loc[ind, "travel2"] - self.schedule.loc[ind, "travel1"]
+        )  # Travel
+        if self.schedule.loc[ind, "rested1"]:
+            self.schedule.loc[ind, "elo_diff"] += rested  # Bye week
+        if self.schedule.loc[ind, "rested2"]:
+            self.schedule.loc[ind, "elo_diff"] -= rested  # Bye week
+        if not self.schedule.loc[ind, "week_num"].isnumeric():
+            self.schedule.loc[ind, "elo_diff"] *= playoffs  # Playoffs
+        self.schedule.loc[ind, "point_spread"] = (
+            self.schedule.loc[ind, "elo_diff"] * elo2points
+        )
+        self.schedule.loc[ind, "elo_prob1"] = 1 / (
+            10 ** (self.schedule.loc[ind, "elo_diff"] / -400) + 1
+        )
+        self.schedule.loc[ind, "elo_prob2"] = 1 - self.schedule.loc[ind, "elo_prob1"]
+        if "qb1_adj" in self.schedule.columns and "qb2_adj" in self.schedule.columns:
+            self.schedule.loc[ind, "qbelo_diff"] = (
+                self.schedule.loc[ind, "elo_diff"]
+                + self.schedule.loc[ind, "qb1_adj"]
+                - self.schedule.loc[ind, "qb2_adj"]
+            )
+            self.schedule.loc[ind, "qbpoint_spread"] = (
+                self.schedule.loc[ind, "qbelo_diff"] * elo2points
+            )
+            self.schedule.loc[ind, "qbelo_prob1"] = 1 / (
+                10 ** (self.schedule.loc[ind, "qbelo_diff"] / -400) + 1
+            )
+            self.schedule.loc[ind, "qbelo_prob2"] = (
+                1 - self.schedule.loc[ind, "qbelo_prob1"]
+            )
 
     def next_elo_delta(self, k_factor: float = 20.0):
         """
-        Identifies the next matchup that does not have complete elo projections 
+        Identifies the next matchup that does not have complete elo projections
         and calculates each team's new elo rating based on the results of that game.
 
         Args:
             k_factor: scaling factor that dictates how much ratings should shift based on recent results, defaults to 20.
         """
-        ind = self.schedule.loc[~self.schedule.elo_prob1.isnull() & self.schedule.elo_delta.isnull()].index[-1]
-        if not pd.isnull(self.schedule.loc[ind,'score1']):
-            self.schedule.loc[ind,'score_diff'] = self.schedule.loc[ind,'score1'] - self.schedule.loc[ind,'score2']
-            self.schedule.loc[ind,'forecast_delta'] = float(self.schedule.loc[ind,'score_diff'] > 0) + \
-            0.5*float(self.schedule.loc[ind,'score_diff'] == 0) - self.schedule.loc[ind,'elo_prob1']
-            self.schedule.loc[ind,'mov_multiplier'] = np.log(abs(self.schedule.loc[ind,'score_diff']) + 1)*2.2/(self.schedule.loc[ind,'elo_diff']*0.001 + 2.2)
-            if pd.isnull(self.schedule.loc[ind,'mov_multiplier']):
-                self.schedule.loc[ind,'mov_multiplier'] = 0.0
-            self.schedule.loc[ind,'elo_delta'] = self.schedule.loc[ind,'forecast_delta']*self.schedule.loc[ind,'mov_multiplier']*k_factor
-            self.schedule.loc[ind,'elo1_post'] = self.schedule.loc[ind,'elo1_pre'] + self.schedule.loc[ind,'elo_delta']
-            self.schedule.loc[ind,'elo2_post'] = self.schedule.loc[ind,'elo2_pre'] - self.schedule.loc[ind,'elo_delta']
+        ind = self.schedule.loc[
+            ~self.schedule.elo_prob1.isnull() & self.schedule.elo_delta.isnull()
+        ].index[-1]
+        if not pd.isnull(self.schedule.loc[ind, "score1"]):
+            self.schedule.loc[ind, "score_diff"] = (
+                self.schedule.loc[ind, "score1"] - self.schedule.loc[ind, "score2"]
+            )
+            self.schedule.loc[ind, "forecast_delta"] = (
+                float(self.schedule.loc[ind, "score_diff"] > 0)
+                + 0.5 * float(self.schedule.loc[ind, "score_diff"] == 0)
+                - self.schedule.loc[ind, "elo_prob1"]
+            )
+            self.schedule.loc[ind, "mov_multiplier"] = (
+                np.log(abs(self.schedule.loc[ind, "score_diff"]) + 1)
+                * 2.2
+                / (self.schedule.loc[ind, "elo_diff"] * 0.001 + 2.2)
+            )
+            if pd.isnull(self.schedule.loc[ind, "mov_multiplier"]):
+                self.schedule.loc[ind, "mov_multiplier"] = 0.0
+            self.schedule.loc[ind, "elo_delta"] = (
+                self.schedule.loc[ind, "forecast_delta"]
+                * self.schedule.loc[ind, "mov_multiplier"]
+                * k_factor
+            )
+            self.schedule.loc[ind, "elo1_post"] = (
+                self.schedule.loc[ind, "elo1_pre"] + self.schedule.loc[ind, "elo_delta"]
+            )
+            self.schedule.loc[ind, "elo2_post"] = (
+                self.schedule.loc[ind, "elo2_pre"] - self.schedule.loc[ind, "elo_delta"]
+            )

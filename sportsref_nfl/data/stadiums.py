@@ -5,13 +5,13 @@ This module handles stadium data retrieval, coordinate lookup,
 and international game tracking for NFL venues.
 """
 
-import os
-import shutil
 import gzip
-import requests
-import pandas as pd
-from bs4 import BeautifulSoup
+import shutil
 from io import StringIO
+
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
 from ..core.scraper import get_page, parse_table
 
@@ -29,12 +29,16 @@ def get_intl_games() -> pd.DataFrame:
     soup = BeautifulSoup(response, "html.parser")
     tables = soup.find_all("table", attrs={"class": "wikitable sortable"})[1:-1]
     intl_games = pd.concat(pd.read_html(StringIO(str(tables))), ignore_index=True)
-    intl_games = intl_games.loc[~intl_games.Date.isnull() & ~intl_games.Date.isin(["TBD", "TBA"])].reset_index(drop=True)
+    intl_games = intl_games.loc[
+        ~intl_games.Date.isnull() & ~intl_games.Date.isin(["TBD", "TBA"])
+    ].reset_index(drop=True)
     intl_games.Year = intl_games.Year.astype(str).str.split(" ").str[0].astype(int)
     intl_games["team1"] = intl_games["Designated home team"].str.split(r"\[").str[0]
     intl_games["team2"] = intl_games["Designated visitor"].str.split(r"\[").str[0]
     intl_games.Stadium = intl_games.Stadium.str.split(r"\[").str[0]
-    intl_games["game_date"] = pd.to_datetime(intl_games.Date + ", " + intl_games.Year.astype(str))
+    intl_games["game_date"] = pd.to_datetime(
+        intl_games.Date + ", " + intl_games.Year.astype(str)
+    )
     return intl_games[["game_date", "team1", "team2", "Stadium"]]
 
 
@@ -55,13 +59,13 @@ def get_team_stadium(abbrev: str, season: int) -> str:
     Identifies the home stadium of the specified team during the specified season.
 
     Args:
-        abbrev: team abbreviation according to Pro Football Reference  
+        abbrev: team abbreviation according to Pro Football Reference
         season: year of the NFL season of interest
 
     Returns:
         Stadium identifier according to Pro Football Reference
     """
-    raw_text = get_page("teams/{}/{}.htm".format(abbrev.lower(), int(season)))
+    raw_text = get_page(f"teams/{abbrev.lower()}/{int(season)}.htm")
     team_info = raw_text.find(id="meta").find_all("p")
     stadium_info = [val for val in team_info if val.text.startswith("Stadium:")]
     if len(stadium_info) == 0:
@@ -77,7 +81,7 @@ def get_team_stadium(abbrev: str, season: int) -> str:
         if stadium_id.shape[0] > 0:
             stadium_id = stadium_id.values[0]
         else:
-            print("Can't find home stadium for {} {}...".format(season,abbrev))
+            print(f"Can't find home stadium for {season} {abbrev}...")
             stadium_id = None
     else:
         stadium_info = stadium_info[0]
@@ -95,7 +99,7 @@ def get_game_stadium(game_id: str) -> str:
     Returns:
         Stadium identifier according to Pro Football Reference.
     """
-    raw_text = get_page("boxscores/{}.htm".format(game_id))
+    raw_text = get_page(f"boxscores/{game_id}.htm")
     game_info = raw_text.find("div", attrs={"class": "scorebox_meta"})
     stadium_id = game_info.find("a").attrs["href"].split("/")[-1].split(".")[0]
     return stadium_id
@@ -111,7 +115,7 @@ def get_address(stadium_id: str) -> str:
     Returns:
         Address of the specified stadium according to Pro Football Reference.
     """
-    raw_text = get_page("stadiums/{}.htm".format(stadium_id))
+    raw_text = get_page(f"stadiums/{stadium_id}.htm")
     meta_info = raw_text.find(id="meta")
     if meta_info is None:
         print(f"Can't find stadium address for stadium ID: {stadium_id}")
@@ -124,14 +128,16 @@ def get_address(stadium_id: str) -> str:
         "Blvd Opa-Locka": "Blvd, Opa-Locka",
         "Northumberland Development Project": "782 High Rd, London N17 0BX, UK",
         "Toronto, Ontario M5V 1J3": "Toronto, ON M5V 1J3, Canada",
-        "Sao Paulo - SP": "São Paulo - SP, Brazil"
+        "Sao Paulo - SP": "São Paulo - SP, Brazil",
     }
     for fix in fixes:
         address = address.replace(fix, fixes[fix])
     return address
 
 
-def download_zip_codes(url: str = "https://nominatim.org/data/us_postcodes.csv.gz") -> pd.DataFrame:
+def download_zip_codes(
+    url: str = "https://nominatim.org/data/us_postcodes.csv.gz",
+) -> pd.DataFrame:
     """
     Downloads a csv from Nominatim containing the GPS coordinates of every zip code in the US
     and returns it in the form of a pandas dataframe (used when accounting for team travel).
@@ -142,13 +148,13 @@ def download_zip_codes(url: str = "https://nominatim.org/data/us_postcodes.csv.g
     Returns:
         DataFrame containing the GPS coordinates of every US zip code.
     """
-    response = requests.get(url,stream=True)
-    with open(url.split('/')[-1],'wb') as out_file:
-        shutil.copyfileobj(response.raw,out_file)
-    with gzip.open(url.split('/')[-1], 'rb') as f_in:
-        with open(url.split('/')[-1][:-3], 'wb') as f_out:
+    response = requests.get(url, stream=True)
+    with open(url.split("/")[-1], "wb") as out_file:
+        shutil.copyfileobj(response.raw, out_file)
+    with gzip.open(url.split("/")[-1], "rb") as f_in:
+        with open(url.split("/")[-1][:-3], "wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
-    zips = pd.read_csv(url.split('/')[-1][:-3],dtype={'postcode':str})
+    zips = pd.read_csv(url.split("/")[-1][:-3], dtype={"postcode": str})
     return zips
 
 
@@ -164,8 +170,8 @@ def get_coordinates(address: str, zips: pd.DataFrame) -> str:
     Returns:
         Latitudinal and longitudinal coordinates separated by a comma.
     """
-    stad_zip = address.split(' ')[-1]
-    stad_coords = zips.loc[zips.postcode == stad_zip,['lat','lon']].astype(str)
+    stad_zip = address.split(" ")[-1]
+    stad_coords = zips.loc[zips.postcode == stad_zip, ["lat", "lon"]].astype(str)
     intl_coords = {
         "Mexico": "19.3029,-99.1505",
         "UK": "51.5072,-0.1276",
