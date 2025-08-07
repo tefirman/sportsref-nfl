@@ -347,7 +347,9 @@ class Schedule:
                     on=["boxscore_abbrev", f"team{team_num}_abbrev"],
                 )
 
-    def next_init_elo(self, init_elo: float = 1300.0, regress_pct: float = 0.333) -> None:
+    def next_init_elo(
+        self, init_elo: float = 1300.0, regress_pct: float = 0.333
+    ) -> None:
         """
         Identifies the next matchup that does not have complete elo projections
         and calculates each team's starting elo rating based on 538's model (#RIP).

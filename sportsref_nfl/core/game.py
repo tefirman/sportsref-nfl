@@ -73,7 +73,7 @@ class Boxscore:
             raise ValueError("Could not find season/week information in game data")
 
         link = season_week_div.find("a")
-        if link is None or not hasattr(link, 'attrs') or 'href' not in link.attrs:
+        if link is None or not hasattr(link, "attrs") or "href" not in link.attrs:
             raise ValueError("Could not extract season/week from game data")
 
         season_week = link.attrs["href"]

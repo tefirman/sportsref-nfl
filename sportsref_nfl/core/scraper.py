@@ -150,6 +150,7 @@ def parse_table(raw_text: BeautifulSoup, table_name: str) -> pd.DataFrame:
         DataFrame containing the data from the specified table.
     """
     from bs4 import Tag
+
     table = raw_text.find(id=table_name)
     if table is None or not isinstance(table, Tag):
         return pd.DataFrame()

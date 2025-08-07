@@ -67,6 +67,7 @@ def get_team_stadium(abbrev: str, season: int) -> str:
     """
     raw_text = get_page(f"teams/{abbrev.lower()}/{int(season)}.htm")
     from bs4 import Tag
+
     meta_div = raw_text.find(id="meta")
     if meta_div is None or not isinstance(meta_div, Tag):
         return ""
@@ -90,7 +91,7 @@ def get_team_stadium(abbrev: str, season: int) -> str:
     else:
         stadium_info = stadium_info[0]
         link = stadium_info.find("a")
-        if link is not None and hasattr(link, 'attrs') and 'href' in link.attrs:
+        if link is not None and hasattr(link, "attrs") and "href" in link.attrs:
             stadium_id = link.attrs["href"].split("/")[-1].split(".")[0]
         else:
             stadium_id = ""
@@ -112,7 +113,7 @@ def get_game_stadium(game_id: str) -> str:
     if game_info is None:
         return ""
     link = game_info.find("a")
-    if link is not None and hasattr(link, 'attrs') and 'href' in link.attrs:
+    if link is not None and hasattr(link, "attrs") and "href" in link.attrs:
         stadium_id = link.attrs["href"].split("/")[-1].split(".")[0]
         return stadium_id
     return ""
@@ -135,7 +136,7 @@ def get_address(stadium_id: str) -> str:
         return "Unknown Stadium Address"
     else:
         p_tag = meta_info.find("p")
-        if p_tag is not None and hasattr(p_tag, 'text'):
+        if p_tag is not None and hasattr(p_tag, "text"):
             address = p_tag.text
         else:
             return "Unknown Stadium Address"
