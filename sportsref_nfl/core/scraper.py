@@ -149,7 +149,11 @@ def parse_table(raw_text: BeautifulSoup, table_name: str) -> pd.DataFrame:
     Returns:
         DataFrame containing the data from the specified table.
     """
-    players = raw_text.find(id=table_name).find_all("tr", attrs={"class": None})
+    from bs4 import Tag
+    table = raw_text.find(id=table_name)
+    if table is None or not isinstance(table, Tag):
+        return pd.DataFrame()
+    players = table.find_all("tr", attrs={"class": None})
     columns = [col.attrs["data-stat"] for col in players.pop(0).find_all("th")]
     stats = pd.DataFrame()
 

@@ -6,6 +6,7 @@ initial QB ELO values based on draft position.
 """
 
 import os
+from typing import Optional
 
 import pandas as pd
 
@@ -30,7 +31,7 @@ def get_draft(season: int) -> pd.DataFrame:
 def get_bulk_draft_pos(
     start_season: int,
     finish_season: int,
-    path: str = None,
+    path: Optional[str] = None,
     best_qb_val: float = 34.313,
     qb_val_per_pick: float = -0.137,
 ) -> pd.DataFrame:

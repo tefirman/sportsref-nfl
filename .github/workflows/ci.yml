@@ -39,8 +39,8 @@ jobs:
         # Format check with ruff
         ruff format --check --diff .
 
-    - name: Type check with mypy (Python 3.8+ only)
-      if: matrix.python-version != '3.7'
+    - name: Type check with mypy (Python 3.9+ only)
+      if: matrix.python-version != '3.8'
       run: |
         mypy sportsref_nfl --ignore-missing-imports
 

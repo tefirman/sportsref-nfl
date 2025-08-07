@@ -20,7 +20,11 @@ def get_names() -> pd.DataFrame:
     names = pd.DataFrame()
     for letter in range(65, 91):
         raw_text = get_page("players/" + chr(letter))
-        players = raw_text.find(id="div_players").find_all("p")
+        from bs4 import Tag
+        div_players = raw_text.find(id="div_players")
+        if div_players is None or not isinstance(div_players, Tag):
+            continue
+        players = div_players.find_all("p")
         for player in players:
             entry = {
                 "name": player.find("a").text,

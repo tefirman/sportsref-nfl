@@ -66,7 +66,11 @@ def get_team_stadium(abbrev: str, season: int) -> str:
         Stadium identifier according to Pro Football Reference
     """
     raw_text = get_page(f"teams/{abbrev.lower()}/{int(season)}.htm")
-    team_info = raw_text.find(id="meta").find_all("p")
+    from bs4 import Tag
+    meta_div = raw_text.find(id="meta")
+    if meta_div is None or not isinstance(meta_div, Tag):
+        return ""
+    team_info = meta_div.find_all("p")
     stadium_info = [val for val in team_info if val.text.startswith("Stadium:")]
     if len(stadium_info) == 0:
         stadiums = get_stadiums()
@@ -85,8 +89,12 @@ def get_team_stadium(abbrev: str, season: int) -> str:
             stadium_id = None
     else:
         stadium_info = stadium_info[0]
-        stadium_id = stadium_info.find("a").attrs["href"].split("/")[-1].split(".")[0]
-    return stadium_id
+        link = stadium_info.find("a")
+        if link is not None and hasattr(link, 'attrs') and 'href' in link.attrs:
+            stadium_id = link.attrs["href"].split("/")[-1].split(".")[0]
+        else:
+            stadium_id = ""
+    return stadium_id or ""
 
 
 def get_game_stadium(game_id: str) -> str:
@@ -101,8 +109,13 @@ def get_game_stadium(game_id: str) -> str:
     """
     raw_text = get_page(f"boxscores/{game_id}.htm")
     game_info = raw_text.find("div", attrs={"class": "scorebox_meta"})
-    stadium_id = game_info.find("a").attrs["href"].split("/")[-1].split(".")[0]
-    return stadium_id
+    if game_info is None:
+        return ""
+    link = game_info.find("a")
+    if link is not None and hasattr(link, 'attrs') and 'href' in link.attrs:
+        stadium_id = link.attrs["href"].split("/")[-1].split(".")[0]
+        return stadium_id
+    return ""
 
 
 def get_address(stadium_id: str) -> str:
@@ -121,7 +134,11 @@ def get_address(stadium_id: str) -> str:
         print(f"Can't find stadium address for stadium ID: {stadium_id}")
         return "Unknown Stadium Address"
     else:
-        address = meta_info.find("p").text
+        p_tag = meta_info.find("p")
+        if p_tag is not None and hasattr(p_tag, 'text'):
+            address = p_tag.text
+        else:
+            return "Unknown Stadium Address"
     fixes = {
         "New Jersey": "NJ",
         "Park Houston": "Park, Houston",

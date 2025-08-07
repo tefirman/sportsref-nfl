@@ -6,6 +6,7 @@ from Pro Football Reference for specified time periods.
 """
 
 import os
+from typing import Optional
 
 import pandas as pd
 
@@ -18,8 +19,8 @@ def get_bulk_stats(
     finish_season: int,
     finish_week: int,
     playoffs: bool = True,
-    path: str = None,
-    schedule_data: pd.DataFrame = None,
+    path: Optional[str] = None,
+    schedule_data: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """
     Pulls individual player statistics for each game in the specified timeframe from Pro Football Reference.

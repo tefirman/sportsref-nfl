@@ -28,6 +28,15 @@ class Boxscore:
         starters: dataframe containing the list of starting players for both teams.
         snaps: dataframe containing the number of snaps played by every player on both teams.
     """
+    
+    # Type annotations for dynamic attributes
+    game_id: str
+    season: int
+    week: int
+    team1_abbrev: str
+    team1_score: int
+    team2_abbrev: str
+    team2_score: int
 
     def __init__(self, game_id: str):
         """
@@ -47,20 +56,27 @@ class Boxscore:
         self.add_qb_value()
         self.normalize_team_names()
 
-    def get_raw_text(self):
+    def get_raw_text(self) -> None:
         """
         Pulls down the raw html from Pro Football Reference containing the statistics for the game in question.
         """
         self.raw_text = get_page(f"boxscores/{self.game_id}.htm")
 
-    def get_details(self):
+    def get_details(self) -> None:
         """
         Extracts the overarching details for the game in question, specifically the season, week, score, and teams involved.
         """
-        season_week = self.raw_text.find(
+        season_week_div = self.raw_text.find(
             "div", attrs={"class": "game_summaries compressed"}
         )
-        season_week = season_week.find("a").attrs["href"]
+        if season_week_div is None:
+            raise ValueError("Could not find season/week information in game data")
+        
+        link = season_week_div.find("a")
+        if link is None or not hasattr(link, 'attrs') or 'href' not in link.attrs:
+            raise ValueError("Could not extract season/week from game data")
+        
+        season_week = link.attrs["href"]
         self.season = int(season_week.split("/")[-2])
         self.week = int(season_week.split("/")[-1].split("_")[-1].split(".")[0])
         home_scores = self.raw_text.find_all(
@@ -74,7 +90,7 @@ class Boxscore:
         self.team2_abbrev = away_scores[0].text
         self.team2_score = int(away_scores[-1].text)
 
-    def get_stats(self):
+    def get_stats(self) -> None:
         """
         Extracts the basic offensive, defensive, and special teams stats
         from the raw html for the game in question.
@@ -103,7 +119,7 @@ class Boxscore:
             self.team1_abbrev
         )
 
-    def get_advanced_stats(self):
+    def get_advanced_stats(self) -> None:
         """
         Extracts the advanced offensive, defensive, and special teams stats
         from the raw html for the game in question (e.g. first downs).
@@ -142,7 +158,7 @@ class Boxscore:
         for col in ["pass_first_down", "rush_first_down", "rec_first_down"]:
             self.game_stats[col] = self.game_stats[col].astype(float).fillna(0.0)
 
-    def get_starters(self):
+    def get_starters(self) -> None:
         """
         Extracts the intended starters for each team in the game in question.
         """
@@ -153,7 +169,7 @@ class Boxscore:
             ]
         )
 
-    def get_snap_counts(self):
+    def get_snap_counts(self) -> None:
         """
         Extracts the actual snap counts for all players on each team in the game in question.
         """
@@ -173,7 +189,7 @@ class Boxscore:
             self.snaps = self.game_stats[["player", "player_id"]].copy()
             self.snaps[["off_pct", "def_pct", "st_pct"]] = 0.0
 
-    def add_depth_chart(self):
+    def add_depth_chart(self) -> None:
         """
         Infers actual depth chart based on available depth charts/snap counts
         and merges it into the game_stats dataframe.
@@ -209,7 +225,7 @@ class Boxscore:
         rush_att: float = -1.1,
         rush_yds: float = 0.6,
         rush_td: float = 15.9,
-    ):
+    ) -> None:
         """
         Calculates individual QB elo value based on 538's model (#RIP).
 
@@ -236,7 +252,7 @@ class Boxscore:
             + rush_td * self.game_stats.loc[qbs, "rush_td"]
         )
 
-    def normalize_team_names(self):
+    def normalize_team_names(self) -> None:
         """
         Normalizes team names between Pro Football Reference's boxscores and schedules.
         """

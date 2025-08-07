@@ -15,7 +15,7 @@ from .data import depth_charts, draft, rosters, stadiums, stats
 from .utils import names
 
 
-def create_argument_parser():
+def create_argument_parser() -> argparse.ArgumentParser:
     """
     Create and configure the argument parser for the CLI interface.
 
@@ -119,7 +119,7 @@ Examples:
     return parser
 
 
-def get_version():
+def get_version() -> str:
     """Get the package version."""
     try:
         from . import __version__
@@ -129,17 +129,16 @@ def get_version():
         return "unknown"
 
 
-def handle_schedule_command(args):
+def handle_schedule_command(args: argparse.Namespace) -> None:
     """Handle the schedule command."""
     if args.verbose:
         print(f"Loading NFL schedule from {args.start_year} to {args.end_year}...")
 
     schedule = Schedule(
-        start_year=args.start_year,
-        end_year=args.end_year,
+        start=args.start_year,
+        finish=args.end_year,
         playoffs=args.playoffs,
         elo=args.elo,
-        verbose=args.verbose,
     )
 
     output_path = args.output or f"nfl_schedule_{args.start_year}_{args.end_year}.csv"
@@ -152,7 +151,7 @@ def handle_schedule_command(args):
         print("ELO calculations included")
 
 
-def handle_boxscore_command(args):
+def handle_boxscore_command(args: argparse.Namespace) -> None:
     """Handle the boxscore command."""
     if args.verbose:
         print(f"Loading boxscore for game: {args.game_id}")
@@ -163,11 +162,12 @@ def handle_boxscore_command(args):
         # Create a summary DataFrame
         summary_data = {
             "game_id": [args.game_id],
-            "date": [boxscore.date],
-            "away_team": [boxscore.away_team],
-            "home_team": [boxscore.home_team],
-            "away_score": [boxscore.away_score],
-            "home_score": [boxscore.home_score],
+            "season": [boxscore.season],
+            "week": [boxscore.week],
+            "away_team": [boxscore.team2_abbrev],
+            "home_team": [boxscore.team1_abbrev],
+            "away_score": [boxscore.team2_score],
+            "home_score": [boxscore.team1_score],
         }
         summary_df = pd.DataFrame(summary_data)
 
@@ -175,15 +175,15 @@ def handle_boxscore_command(args):
         summary_df.to_csv(output_path, index=False)
 
         print(f"Boxscore data saved to: {output_path}")
-        print(f"Game: {boxscore.away_team} @ {boxscore.home_team}")
-        print(f"Score: {boxscore.away_score} - {boxscore.home_score}")
+        print(f"Game: {boxscore.team2_abbrev} @ {boxscore.team1_abbrev}")
+        print(f"Score: {boxscore.team2_score} - {boxscore.team1_score}")
 
     except Exception as e:
         print(f"Error loading boxscore: {e}")
         sys.exit(1)
 
 
-def handle_stats_command(args):
+def handle_stats_command(args: argparse.Namespace) -> None:
     """Handle the stats command."""
     if args.verbose:
         print(f"Loading {args.year} player statistics...")
@@ -217,7 +217,7 @@ def handle_stats_command(args):
         sys.exit(1)
 
 
-def handle_draft_command(args):
+def handle_draft_command(args: argparse.Namespace) -> None:
     """Handle the draft command."""
     if args.verbose:
         print(f"Loading {args.year} NFL draft data...")
@@ -236,7 +236,7 @@ def handle_draft_command(args):
         sys.exit(1)
 
 
-def handle_rosters_command(args):
+def handle_rosters_command(args: argparse.Namespace) -> None:
     """Handle the rosters command."""
     if args.verbose:
         print(f"Loading {args.year} team rosters...")
@@ -246,7 +246,7 @@ def handle_rosters_command(args):
             roster_df = rosters.get_roster(args.team, args.year)
             output_suffix = f"_{args.team.lower()}"
         else:
-            roster_df = rosters.get_bulk_rosters(args.year)
+            roster_df = rosters.get_bulk_rosters(args.year, args.year)
             output_suffix = "_all"
 
         output_path = args.output or f"nfl_rosters_{args.year}{output_suffix}.csv"
@@ -260,17 +260,17 @@ def handle_rosters_command(args):
         sys.exit(1)
 
 
-def handle_depth_charts_command(args):
+def handle_depth_charts_command(args: argparse.Namespace) -> None:
     """Handle the depth charts command."""
     if args.verbose:
         print(f"Loading {args.year} depth charts...")
 
     try:
         if args.team:
-            depth_df = depth_charts.get_depth_chart(args.team, args.year)
+            depth_df = depth_charts.get_depth_chart(args.team)
             output_suffix = f"_{args.team.lower()}"
         else:
-            depth_df = depth_charts.get_all_depth_charts(args.year)
+            depth_df = depth_charts.get_all_depth_charts()
             output_suffix = "_all"
 
         output_path = args.output or f"nfl_depth_charts_{args.year}{output_suffix}.csv"
@@ -284,7 +284,7 @@ def handle_depth_charts_command(args):
         sys.exit(1)
 
 
-def handle_stadiums_command(args):
+def handle_stadiums_command(args: argparse.Namespace) -> None:
     """Handle the stadiums command."""
     if args.verbose:
         print("Loading stadium information...")
@@ -303,14 +303,11 @@ def handle_stadiums_command(args):
         sys.exit(1)
 
 
-def handle_names_command(args):
+def handle_names_command(args: argparse.Namespace) -> None:
     """Handle the names command."""
     if args.normalize:
-        name_list = names.get_names([args.normalize])
-        if name_list:
-            normalized = name_list[0] if name_list else args.normalize
-        else:
-            normalized = args.normalize
+        # Simple normalization - just lowercase and strip
+        normalized = args.normalize.lower().strip()
         print(f"Original: {args.normalize}")
         print(f"Normalized: {normalized}")
 
@@ -326,7 +323,7 @@ def handle_names_command(args):
         print("Please specify --normalize or --match option")
 
 
-def main():
+def main() -> None:
     """
     Main entry point for the sportsref-nfl CLI.
     """

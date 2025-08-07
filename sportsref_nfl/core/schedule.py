@@ -31,6 +31,8 @@ class Schedule:
     Attributes:
         schedule: dataframe containing matchup details for the seasons of interest.
     """
+    
+    schedule: pd.DataFrame
 
     def __init__(
         self,
@@ -69,7 +71,7 @@ class Schedule:
                 self.schedule.week_num.str.isnumeric()
             ].reset_index(drop=True)
 
-    def get_schedules(self, start: int, finish: int):
+    def get_schedules(self, start: int, finish: int) -> None:
         """
         Pulls the full NFL schedules for the seasons provided.
 
@@ -110,7 +112,7 @@ class Schedule:
                 season_sched[["yards_win", "to_win", "yards_lose", "to_lose"]] = None
             self.schedule = pd.concat([self.schedule, season_sched], ignore_index=True)
 
-    def add_weeks(self):
+    def add_weeks(self) -> None:
         """
         Infers season week based on game dates for each season.
         """
@@ -137,7 +139,7 @@ class Schedule:
             mismatch, "week_num"
         ].astype(int)
 
-    def convert_to_home_away(self):
+    def convert_to_home_away(self) -> None:
         """
         Converts winner/loser syntax of Pro Football Reference schedules into home/away.
         """
@@ -163,7 +165,7 @@ class Schedule:
             away_loser, loser_list
         ].values
 
-    def mark_intl_games(self):
+    def mark_intl_games(self) -> None:
         """
         Identifies international games in the provided schedule (used when accounting for team travel).
         """
@@ -192,7 +194,7 @@ class Schedule:
             bad = bad.loc[bad.boxscore_abbrev.isnull()]
             print(bad)
 
-    def add_team_coords(self):
+    def add_team_coords(self) -> None:
         """
         Adds the home coordinates for each team in each matchup of the schedule.
         """
@@ -220,7 +222,7 @@ class Schedule:
                 self.schedule.team2_abbrev == team["abbrev"], "coords2"
             ] = coords
 
-    def add_game_coords(self):
+    def add_game_coords(self) -> None:
         """
         Adds game coordinates for each of the matchups in the schedule.
         If the game is international, the location is pulled directly from Pro Football Reference.
@@ -256,7 +258,7 @@ class Schedule:
         del self.schedule["Stadium"]
         self.schedule.game_coords = self.schedule.game_coords.str.split(",")
 
-    def add_travel(self):
+    def add_travel(self) -> None:
         """
         Adds the distance traveled for each team in each matchup of the schedule.
         """
@@ -269,7 +271,7 @@ class Schedule:
                 axis=1,
             )
 
-    def add_rest(self):
+    def add_rest(self) -> None:
         """
         Identifies teams that had a bye week before the matchup in question.
         """
@@ -296,7 +298,7 @@ class Schedule:
         self.schedule.rested1 = self.schedule.rested1.astype(bool).fillna(False)
         self.schedule.rested2 = self.schedule.rested2.astype(bool).fillna(False)
 
-    def add_elo_columns(self, qbelo: bool = False):
+    def add_elo_columns(self, qbelo: bool = False) -> None:
         """
         Adds the necessary columns for elo projections throughout the schedule.
 
@@ -345,7 +347,7 @@ class Schedule:
                     on=["boxscore_abbrev", f"team{team_num}_abbrev"],
                 )
 
-    def next_init_elo(self, init_elo: float = 1300.0, regress_pct: float = 0.333):
+    def next_init_elo(self, init_elo: float = 1300.0, regress_pct: float = 0.333) -> None:
         """
         Identifies the next matchup that does not have complete elo projections
         and calculates each team's starting elo rating based on 538's model (#RIP).
@@ -396,7 +398,7 @@ class Schedule:
         rested: float = 25.0,
         playoffs: float = 1.2,
         elo2points: float = 0.04,
-    ):
+    ) -> None:
         """
         Identifies the next matchup that does not have complete elo projections
         and calculates each team's win probability based on 538's model (#RIP).
@@ -445,7 +447,7 @@ class Schedule:
                 1 - self.schedule.loc[ind, "qbelo_prob1"]
             )
 
-    def next_elo_delta(self, k_factor: float = 20.0):
+    def next_elo_delta(self, k_factor: float = 20.0) -> None:
         """
         Identifies the next matchup that does not have complete elo projections
         and calculates each team's new elo rating based on the results of that game.

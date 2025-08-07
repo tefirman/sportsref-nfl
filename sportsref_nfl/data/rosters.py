@@ -7,6 +7,7 @@ for specified seasons and teams.
 
 import datetime
 import os
+from typing import Optional
 
 import pandas as pd
 
@@ -31,7 +32,7 @@ def get_roster(team: str, season: int) -> pd.DataFrame:
 
 
 def get_bulk_rosters(
-    start_season: int, finish_season: int, path: str = None
+    start_season: int, finish_season: int, path: Optional[str] = None
 ) -> pd.DataFrame:
     """
     Pulls all NFL rosters during the specified timeframe from Pro Football Reference.
