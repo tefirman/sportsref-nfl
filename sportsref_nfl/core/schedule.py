@@ -31,7 +31,7 @@ class Schedule:
     Attributes:
         schedule: dataframe containing matchup details for the seasons of interest.
     """
-    
+
     schedule: pd.DataFrame
 
     def __init__(

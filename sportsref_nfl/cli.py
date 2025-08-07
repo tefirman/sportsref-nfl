@@ -12,7 +12,6 @@ import pandas as pd
 
 from . import Boxscore, Schedule
 from .data import depth_charts, draft, rosters, stadiums, stats
-from .utils import names
 
 
 def create_argument_parser() -> argparse.ArgumentParser:

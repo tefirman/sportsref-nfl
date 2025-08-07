@@ -28,7 +28,7 @@ class Boxscore:
         starters: dataframe containing the list of starting players for both teams.
         snaps: dataframe containing the number of snaps played by every player on both teams.
     """
-    
+
     # Type annotations for dynamic attributes
     game_id: str
     season: int
@@ -71,11 +71,11 @@ class Boxscore:
         )
         if season_week_div is None:
             raise ValueError("Could not find season/week information in game data")
-        
+
         link = season_week_div.find("a")
         if link is None or not hasattr(link, 'attrs') or 'href' not in link.attrs:
             raise ValueError("Could not extract season/week from game data")
-        
+
         season_week = link.attrs["href"]
         self.season = int(season_week.split("/")[-2])
         self.week = int(season_week.split("/")[-1].split("_")[-1].split(".")[0])
