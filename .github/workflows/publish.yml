@@ -36,9 +36,6 @@ jobs:
   publish:
     needs: test
     runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      id-token: write
 
     steps:
     - uses: actions/checkout@v4
@@ -64,6 +61,7 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         repository-url: https://test.pypi.org/legacy/
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
     - name: Publish to PyPI
       if: github.event_name == 'release'
