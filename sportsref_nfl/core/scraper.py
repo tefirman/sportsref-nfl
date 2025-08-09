@@ -100,42 +100,68 @@ def get_page_selenium(endpoint: str) -> BeautifulSoup:
     return soup
 
 
-def get_page(endpoint: str) -> BeautifulSoup:
+def get_page(endpoint: str, max_retries: int = 3) -> BeautifulSoup:
     """
     Pulls down the raw html for the specified endpoint of Pro Football Reference.
     First tries Selenium to bypass Cloudflare, falls back to cloudscraper if needed.
 
     Args:
         endpoint: relative location of the page to pull down.
+        max_retries: maximum number of retry attempts.
 
     Returns:
         Parsed html of the specified endpoint.
     """
     # Add delay to respect rate limits
     time.sleep(4)
+    
+    for attempt in range(max_retries):
+        if attempt > 0:
+            wait_time = (2 ** attempt) * 3  # Exponential backoff: 6s, 12s, 24s
+            print(f"🔄 Retry attempt {attempt + 1}/{max_retries} after {wait_time}s delay...")
+            time.sleep(wait_time)
 
-    # Try Selenium first (better for Cloudflare)
-    try:
-        return get_page_selenium(endpoint)
-    except Exception as selenium_error:
-        print(f"⚠️  Selenium failed: {selenium_error}")
-        print("🔄 Falling back to cloudscraper...")
-
-        # Fall back to original cloudscraper method
+        # Try Selenium first (better for Cloudflare)
         try:
-            scraper = cloudscraper.create_scraper()
-            response = scraper.get(BASE_URL + endpoint).text
-            uncommented = response.replace("<!--", "").replace("-->", "")
-            soup = BeautifulSoup(uncommented, "html.parser")
-            return soup
-        except requests.exceptions.ConnectionError:
-            print("GETTING CONNECTION ERROR AGAIN!!!")
-            print(endpoint)
-            sys.exit(1)
-        except Exception as cloudscraper_error:
-            raise Exception(
-                f"Both Selenium and cloudscraper failed. Selenium: {selenium_error}. Cloudscraper: {cloudscraper_error}"
-            ) from cloudscraper_error
+            return get_page_selenium(endpoint)
+        except Exception as selenium_error:
+            print(f"⚠️  Selenium failed: {selenium_error}")
+            print("🔄 Falling back to cloudscraper...")
+
+            # Fall back to original cloudscraper method
+            try:
+                scraper = cloudscraper.create_scraper()
+                response = scraper.get(BASE_URL + endpoint).text
+                uncommented = response.replace("<!--", "").replace("-->", "")
+                soup = BeautifulSoup(uncommented, "html.parser")
+                
+                # Check if we got a Cloudflare challenge page
+                title = soup.title.text if soup.title else ""
+                if "just a moment" in title.lower() or "challenge" in title.lower():
+                    print(f"⚠️  Cloudscraper got Cloudflare challenge: {title}")
+                    if attempt < max_retries - 1:
+                        continue  # Retry
+                    else:
+                        raise Exception(f"Cloudflare blocking after {max_retries} attempts")
+                
+                return soup
+            except requests.exceptions.ConnectionError:
+                print("GETTING CONNECTION ERROR AGAIN!!!")
+                print(endpoint)
+                if attempt < max_retries - 1:
+                    continue  # Retry
+                else:
+                    sys.exit(1)
+            except Exception as cloudscraper_error:
+                if attempt < max_retries - 1:
+                    print(f"⚠️  Attempt {attempt + 1} failed: {cloudscraper_error}")
+                    continue  # Retry
+                else:
+                    raise Exception(
+                        f"Both Selenium and cloudscraper failed after {max_retries} attempts. Selenium: {selenium_error}. Cloudscraper: {cloudscraper_error}"
+                    ) from cloudscraper_error
+    
+    raise Exception(f"Failed to fetch page after {max_retries} attempts")
 
 
 def parse_table(raw_text: BeautifulSoup, table_name: str) -> pd.DataFrame:

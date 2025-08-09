@@ -188,14 +188,19 @@ def handle_stats_command(args: argparse.Namespace) -> None:
         print(f"Loading {args.year} player statistics...")
 
     try:
-        # Use the actual get_bulk_stats function
-        # For simplicity, get full season stats (week 1-18)
+        # First create a schedule to get game data
+        if args.verbose:
+            print("Creating schedule to identify games...")
+        schedule = Schedule(start=args.year, finish=args.year, playoffs=True, elo=False)
+        
+        # Use the actual get_bulk_stats function with schedule data
         stats_df = stats.get_bulk_stats(
             start_season=args.year,
             start_week=1,
             finish_season=args.year,
             finish_week=18,
             playoffs=True,
+            schedule_data=schedule.schedule,
         )
 
         # Filter by position if specified

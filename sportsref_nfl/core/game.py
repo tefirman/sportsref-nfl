@@ -70,6 +70,18 @@ class Boxscore:
             "div", attrs={"class": "game_summaries compressed"}
         )
         if season_week_div is None:
+            # Debug: check what we actually got
+            title = self.raw_text.title.text if self.raw_text.title else "No title"
+            print(f"DEBUG: Page title: {title}")
+            
+            # Check if we got a Cloudflare challenge page
+            if "challenge" in title.lower() or "just a moment" in title.lower():
+                raise ValueError(f"Cloudflare challenge page detected: {title}")
+            
+            # Check for other common divs that might indicate page structure
+            divs_found = [div.get('class') for div in self.raw_text.find_all('div', class_=True)[:10]]
+            print(f"DEBUG: First 10 div classes found: {divs_found}")
+            
             raise ValueError("Could not find season/week information in game data")
 
         link = season_week_div.find("a")

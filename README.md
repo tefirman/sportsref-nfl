@@ -30,7 +30,7 @@ pip install sportsref-nfl
 sportsref-nfl schedule --start-year 2020 --end-year 2024 --elo
 
 # Get specific game boxscore
-sportsref-nfl boxscore --game-id "202401070buf"
+sportsref-nfl boxscore --game-id "202409230buf"
 
 # Download player statistics
 sportsref-nfl stats --year 2024 --position QB
@@ -56,7 +56,7 @@ schedule = sr.Schedule(
 print(schedule.schedule.head())
 
 # Get boxscore data
-game = sr.Boxscore("202401070buf")
+game = sr.Boxscore("202409230buf")
 print(f"{game.away_team} {game.away_score} - {game.home_score} {game.home_team}")
 
 # Load player statistics
@@ -102,7 +102,7 @@ print(df.columns)
 import sportsref_nfl as sr
 
 # Load specific game
-game = sr.Boxscore("202401070buf")  # Bills playoff game
+game = sr.Boxscore("202409230buf")  # Bills playoff game
 
 # Access game data
 print(game.date)
