@@ -12,6 +12,7 @@ import pandas as pd
 
 from . import Boxscore, Schedule
 from .data import depth_charts, draft, rosters, stadiums, stats
+from .cache import cache_info, clear_cache
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -107,6 +108,21 @@ Examples:
         nargs=2,
         metavar=("NAME1", "NAME2"),
         help="Check if two names match",
+    )
+
+    # Cache management commands
+    cache_parser = subparsers.add_parser("cache", help="Cache management")
+    cache_subparsers = cache_parser.add_subparsers(dest="cache_command", help="Cache commands")
+    
+    # Cache info
+    cache_info_parser = cache_subparsers.add_parser("info", help="Show cache information")
+    
+    # Cache clear
+    cache_clear_parser = cache_subparsers.add_parser("clear", help="Clear cache")
+    cache_clear_parser.add_argument(
+        "--type", 
+        choices=["historical", "current_season", "live_season", "draft", "stadiums"],
+        help="Cache type to clear (default: all)"
     )
 
     # Global options
@@ -327,6 +343,33 @@ def handle_names_command(args: argparse.Namespace) -> None:
         print("Please specify --normalize or --match option")
 
 
+def handle_cache_command(args: argparse.Namespace) -> None:
+    """Handle the cache command."""
+    if args.cache_command == "info":
+        info = cache_info()
+        print("📁 Cache Information")
+        print("=" * 20)
+        print(f"Cache directory: {info['cache_dir']}")
+        print(f"Total files: {info['total_files']}")
+        print(f"Total size: {info['size_mb']} MB")
+        print(f"Expired files: {info['expired']}")
+        print()
+        print("Files by type:")
+        for cache_type, count in info['by_type'].items():
+            print(f"  {cache_type}: {count}")
+    
+    elif args.cache_command == "clear":
+        cache_type = getattr(args, 'type', None)
+        cleared = clear_cache(cache_type)
+        if cache_type:
+            print(f"Cleared {cleared} {cache_type} cache files")
+        else:
+            print(f"Cleared {cleared} cache files")
+    
+    else:
+        print("Please specify a cache subcommand: info or clear")
+
+
 def main() -> None:
     """
     Main entry point for the sportsref-nfl CLI.
@@ -360,6 +403,8 @@ def main() -> None:
             handle_stadiums_command(args)
         elif args.command == "names":
             handle_names_command(args)
+        elif args.command == "cache":
+            handle_cache_command(args)
         else:
             print(f"Unknown command: {args.command}")
             sys.exit(1)

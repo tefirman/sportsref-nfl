@@ -13,6 +13,8 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
+from ..cache import get_cache
+
 # Selenium imports
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
@@ -100,18 +102,28 @@ def get_page_selenium(endpoint: str) -> BeautifulSoup:
     return soup
 
 
-def get_page(endpoint: str, max_retries: int = 3) -> BeautifulSoup:
+def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> BeautifulSoup:
     """
     Pulls down the raw html for the specified endpoint of Pro Football Reference.
-    First tries Selenium to bypass Cloudflare, falls back to cloudscraper if needed.
+    First checks cache, then tries Selenium to bypass Cloudflare, falls back to cloudscraper if needed.
 
     Args:
         endpoint: relative location of the page to pull down.
         max_retries: maximum number of retry attempts.
+        use_cache: whether to use caching system.
 
     Returns:
         Parsed html of the specified endpoint.
     """
+    cache = get_cache()
+    
+    # Check cache first
+    if use_cache:
+        cached_page = cache.get_cached_page(endpoint)
+        if cached_page is not None:
+            print(f"📁 Using cached: {endpoint}")
+            return cached_page
+    
     # Add delay to respect rate limits
     time.sleep(4)
     
@@ -123,7 +135,11 @@ def get_page(endpoint: str, max_retries: int = 3) -> BeautifulSoup:
 
         # Try Selenium first (better for Cloudflare)
         try:
-            return get_page_selenium(endpoint)
+            soup = get_page_selenium(endpoint)
+            # Cache successful result
+            if use_cache:
+                cache.cache_page(endpoint, soup)
+            return soup
         except Exception as selenium_error:
             print(f"⚠️  Selenium failed: {selenium_error}")
             print("🔄 Falling back to cloudscraper...")
@@ -144,6 +160,9 @@ def get_page(endpoint: str, max_retries: int = 3) -> BeautifulSoup:
                     else:
                         raise Exception(f"Cloudflare blocking after {max_retries} attempts")
                 
+                # Cache successful result
+                if use_cache:
+                    cache.cache_page(endpoint, soup)
                 return soup
             except requests.exceptions.ConnectionError:
                 print("GETTING CONNECTION ERROR AGAIN!!!")
