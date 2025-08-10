@@ -9,7 +9,6 @@ import datetime
 import os
 from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 from ..core.schedule import Schedule
@@ -59,8 +58,9 @@ def get_bulk_rosters(
     for season in range(start_season, finish_season + 1):
         if season not in teams.season.unique():
             season_mask = s.schedule.season == season
-            teams_series: pd.Series = s.schedule.loc[season_mask, "team1_abbrev"]
-            teams_in_season: np.ndarray = teams_series.unique()
+            filtered_schedule = s.schedule[season_mask]
+            teams_series = filtered_schedule["team1_abbrev"]
+            teams_in_season = teams_series.unique()
             for team in teams_in_season:
                 roster = get_roster(team, season)
                 roster["team"] = team
