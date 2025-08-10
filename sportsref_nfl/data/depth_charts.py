@@ -61,9 +61,9 @@ def get_depth_chart(team_abbrev: str) -> pd.DataFrame:
         depth.loc[injured_mask, "player"] = (
             depth.loc[injured_mask, "player"].str.split(" ").str[:-1].apply(" ".join)
         )
-    injured_players = depth.loc[depth.status.isin(["O", "PUP", "SUSP", "IR"])].reset_index(
-        drop=True
-    )
+    injured_players = depth.loc[
+        depth.status.isin(["O", "PUP", "SUSP", "IR"])
+    ].reset_index(drop=True)
     injured_players.string = float("inf")
     depth = pd.concat(
         [depth.loc[~depth.status.isin(["O", "PUP", "SUSP", "IR"])], injured_players],
@@ -102,8 +102,6 @@ def get_all_depth_charts() -> pd.DataFrame:
     depths = pd.DataFrame(columns=["team"])
     for ind in range(teams.shape[0]):
         team_espn = str(teams.loc[ind, "espn"])
-        depths = pd.concat(
-            [depths, get_depth_chart(team_espn)], ignore_index=True
-        )
+        depths = pd.concat([depths, get_depth_chart(team_espn)], ignore_index=True)
         depths.team = depths.team.fillna(teams.loc[ind, "real_abbrev"])
     return depths

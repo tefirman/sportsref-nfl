@@ -243,7 +243,11 @@ class NFLCache:
                 stats["by_type"][cache_type] = 1
 
             expires_at = metadata.get("expires_at")
-            if expires_at is not None and isinstance(expires_at, (int, float)) and now > expires_at:
+            if (
+                expires_at is not None
+                and isinstance(expires_at, (int, float))
+                and now > expires_at
+            ):
                 stats["expired"] += 1
 
         return stats
