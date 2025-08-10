@@ -79,7 +79,10 @@ class Boxscore:
                 raise ValueError(f"Cloudflare challenge page detected: {title}")
 
             # Check for other common divs that might indicate page structure
-            divs_found = [div.get('class') for div in self.raw_text.find_all('div', class_=True)[:10]]
+            divs_found = [
+                div.get("class")
+                for div in self.raw_text.find_all("div", class_=True)[:10]
+            ]
             print(f"DEBUG: First 10 div classes found: {divs_found}")
 
             raise ValueError("Could not find season/week information in game data")

@@ -102,7 +102,9 @@ def get_page_selenium(endpoint: str) -> BeautifulSoup:
     return soup
 
 
-def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> BeautifulSoup:
+def get_page(
+    endpoint: str, max_retries: int = 3, use_cache: bool = True
+) -> BeautifulSoup:
     """
     Pulls down the raw html for the specified endpoint of Pro Football Reference.
     First checks cache, then tries Selenium to bypass Cloudflare, falls back to cloudscraper if needed.
@@ -129,8 +131,10 @@ def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> Bea
 
     for attempt in range(max_retries):
         if attempt > 0:
-            wait_time = (2 ** attempt) * 3  # Exponential backoff: 6s, 12s, 24s
-            print(f"🔄 Retry attempt {attempt + 1}/{max_retries} after {wait_time}s delay...")
+            wait_time = (2**attempt) * 3  # Exponential backoff: 6s, 12s, 24s
+            print(
+                f"🔄 Retry attempt {attempt + 1}/{max_retries} after {wait_time}s delay..."
+            )
             time.sleep(wait_time)
 
         # Try Selenium first (better for Cloudflare)
@@ -158,7 +162,9 @@ def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> Bea
                     if attempt < max_retries - 1:
                         continue  # Retry
                     else:
-                        raise Exception(f"Cloudflare blocking after {max_retries} attempts")
+                        raise Exception(
+                            f"Cloudflare blocking after {max_retries} attempts"
+                        )
 
                 # Cache successful result
                 if use_cache:

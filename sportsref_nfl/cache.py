@@ -48,7 +48,7 @@ class NFLCache:
 
     def _save_metadata(self) -> None:
         """Save cache metadata to disk."""
-        with open(self.metadata_file, 'w') as f:
+        with open(self.metadata_file, "w") as f:
             json.dump(self.metadata, f, indent=2)
 
     def _get_cache_key(self, endpoint: str) -> str:
@@ -97,10 +97,10 @@ class NFLCache:
         """Get expiration timestamp for cache type."""
         durations = {
             "historical": None,  # Never expires
-            "current_season": 24*60*60,  # 24 hours
-            "live_season": 4*60*60,  # 4 hours
+            "current_season": 24 * 60 * 60,  # 24 hours
+            "live_season": 4 * 60 * 60,  # 4 hours
             "draft": None,  # Never expires
-            "stadiums": 30*24*60*60,  # 30 days
+            "stadiums": 30 * 24 * 60 * 60,  # 30 days
         }
 
         duration = durations.get(cache_type)
@@ -136,9 +136,9 @@ class NFLCache:
             return None
 
         try:
-            with open(cache_file, encoding='utf-8') as f:
+            with open(cache_file, encoding="utf-8") as f:
                 content = f.read()
-            return BeautifulSoup(content, 'html.parser')
+            return BeautifulSoup(content, "html.parser")
         except (OSError, UnicodeDecodeError):
             # Remove corrupted cache file
             cache_file.unlink(missing_ok=True)
@@ -160,14 +160,14 @@ class NFLCache:
         cache_type = self._get_cache_type(endpoint)
 
         try:
-            with open(cache_file, 'w', encoding='utf-8') as f:
+            with open(cache_file, "w", encoding="utf-8") as f:
                 f.write(str(soup))
 
             self.metadata[cache_key] = {
                 "endpoint": endpoint,
                 "cache_type": cache_type,
                 "cached_at": time.time(),
-                "expires_at": self._get_expiration_time(cache_type)
+                "expires_at": self._get_expiration_time(cache_type),
             }
             self._save_metadata()
 
@@ -209,18 +209,20 @@ class NFLCache:
             "cache_dir": str(self.cache_dir),
             "size_mb": 0,
             "by_type": {},
-            "expired": 0
+            "expired": 0,
         }
 
         # Calculate cache directory size
         try:
-            total_size = sum(f.stat().st_size for f in self.cache_dir.rglob('*') if f.is_file())
+            total_size = sum(
+                f.stat().st_size for f in self.cache_dir.rglob("*") if f.is_file()
+            )
             stats["size_mb"] = round(total_size / (1024 * 1024), 2)
         except OSError:
             pass
 
         # Count by type and expired files
-        for cache_key, metadata in self.metadata.items():
+        for _cache_key, metadata in self.metadata.items():
             cache_type = metadata.get("cache_type", "unknown")
             stats["by_type"][cache_type] = stats["by_type"].get(cache_type, 0) + 1
 
