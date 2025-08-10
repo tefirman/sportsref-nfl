@@ -7,11 +7,10 @@ with intelligent expiration based on data type and recency.
 
 import hashlib
 import json
-import os
 import time
-from pathlib import Path
-from typing import Optional, Dict, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from bs4 import BeautifulSoup
 
@@ -32,7 +31,7 @@ class NFLCache:
             self.cache_dir = Path.home() / ".sportsref_nfl_cache"
         else:
             self.cache_dir = Path(cache_dir)
-        
+
         self.cache_dir.mkdir(exist_ok=True)
         self.metadata_file = self.cache_dir / "cache_metadata.json"
         self.metadata = self._load_metadata()
@@ -41,9 +40,9 @@ class NFLCache:
         """Load cache metadata from disk."""
         if self.metadata_file.exists():
             try:
-                with open(self.metadata_file, 'r') as f:
+                with open(self.metadata_file) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError):
+            except (OSError, json.JSONDecodeError):
                 return {}
         return {}
 
@@ -59,7 +58,7 @@ class NFLCache:
     def _get_cache_type(self, endpoint: str) -> str:
         """Determine cache type based on endpoint pattern."""
         current_year = datetime.now().year
-        
+
         if "boxscores/" in endpoint:
             # Extract year from boxscore ID (e.g., 202409050kan -> 2024)
             game_id = endpoint.split("/")[-1].split(".")[0]
@@ -73,7 +72,7 @@ class NFLCache:
                 except ValueError:
                     pass
             return "current_season"
-        
+
         elif "years/" in endpoint and "games.htm" in endpoint:
             # Schedule pages
             year_match = endpoint.split("/")[-2]
@@ -86,7 +85,7 @@ class NFLCache:
             except ValueError:
                 pass
             return "live_season"
-        
+
         elif "draft" in endpoint:
             return "draft"
         elif "stadiums" in endpoint:
@@ -103,7 +102,7 @@ class NFLCache:
             "draft": None,  # Never expires
             "stadiums": 30*24*60*60,  # 30 days
         }
-        
+
         duration = durations.get(cache_type)
         if duration is None:
             return None  # Never expires
@@ -113,11 +112,11 @@ class NFLCache:
         """Check if cached item is expired."""
         if cache_key not in self.metadata:
             return True
-        
+
         expires_at = self.metadata[cache_key].get("expires_at")
         if expires_at is None:
             return False  # Never expires
-        
+
         return time.time() > expires_at
 
     def get_cached_page(self, endpoint: str) -> Optional[BeautifulSoup]:
@@ -137,10 +136,10 @@ class NFLCache:
             return None
 
         try:
-            with open(cache_file, 'r', encoding='utf-8') as f:
+            with open(cache_file, encoding='utf-8') as f:
                 content = f.read()
             return BeautifulSoup(content, 'html.parser')
-        except (IOError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError):
             # Remove corrupted cache file
             cache_file.unlink(missing_ok=True)
             if cache_key in self.metadata:
@@ -171,10 +170,10 @@ class NFLCache:
                 "expires_at": self._get_expiration_time(cache_type)
             }
             self._save_metadata()
-            
+
             print(f"📁 Cached: {endpoint} ({cache_type})")
-            
-        except IOError as e:
+
+        except OSError as e:
             print(f"⚠️  Failed to cache {endpoint}: {e}")
 
     def clear_cache(self, cache_type: Optional[str] = None) -> int:
@@ -188,7 +187,7 @@ class NFLCache:
             Number of files cleared
         """
         cleared = 0
-        
+
         for cache_key, metadata in list(self.metadata.items()):
             if cache_type is None or metadata.get("cache_type") == cache_type:
                 cache_file = self.cache_dir / f"{cache_key}.html"
@@ -199,7 +198,7 @@ class NFLCache:
         if cleared > 0:
             self._save_metadata()
             print(f"🗑️  Cleared {cleared} cache files")
-        
+
         return cleared
 
     def cache_info(self) -> Dict[str, Any]:
@@ -224,7 +223,7 @@ class NFLCache:
         for cache_key, metadata in self.metadata.items():
             cache_type = metadata.get("cache_type", "unknown")
             stats["by_type"][cache_type] = stats["by_type"].get(cache_type, 0) + 1
-            
+
             expires_at = metadata.get("expires_at")
             if expires_at is not None and now > expires_at:
                 stats["expired"] += 1

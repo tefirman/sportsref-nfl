@@ -11,8 +11,8 @@ import sys
 import pandas as pd
 
 from . import Boxscore, Schedule
-from .data import depth_charts, draft, rosters, stadiums, stats
 from .cache import cache_info, clear_cache
+from .data import depth_charts, draft, rosters, stadiums, stats
 
 
 def create_argument_parser() -> argparse.ArgumentParser:
@@ -113,14 +113,14 @@ Examples:
     # Cache management commands
     cache_parser = subparsers.add_parser("cache", help="Cache management")
     cache_subparsers = cache_parser.add_subparsers(dest="cache_command", help="Cache commands")
-    
+
     # Cache info
     cache_info_parser = cache_subparsers.add_parser("info", help="Show cache information")
-    
+
     # Cache clear
     cache_clear_parser = cache_subparsers.add_parser("clear", help="Clear cache")
     cache_clear_parser.add_argument(
-        "--type", 
+        "--type",
         choices=["historical", "current_season", "live_season", "draft", "stadiums"],
         help="Cache type to clear (default: all)"
     )
@@ -208,7 +208,7 @@ def handle_stats_command(args: argparse.Namespace) -> None:
         if args.verbose:
             print("Creating schedule to identify games...")
         schedule = Schedule(start=args.year, finish=args.year, playoffs=True, elo=False)
-        
+
         # Use the actual get_bulk_stats function with schedule data
         stats_df = stats.get_bulk_stats(
             start_season=args.year,
@@ -357,7 +357,7 @@ def handle_cache_command(args: argparse.Namespace) -> None:
         print("Files by type:")
         for cache_type, count in info['by_type'].items():
             print(f"  {cache_type}: {count}")
-    
+
     elif args.cache_command == "clear":
         cache_type = getattr(args, 'type', None)
         cleared = clear_cache(cache_type)
@@ -365,7 +365,7 @@ def handle_cache_command(args: argparse.Namespace) -> None:
             print(f"Cleared {cleared} {cache_type} cache files")
         else:
             print(f"Cleared {cleared} cache files")
-    
+
     else:
         print("Please specify a cache subcommand: info or clear")
 

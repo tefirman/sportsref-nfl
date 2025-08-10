@@ -13,14 +13,14 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from ..cache import get_cache
-
 # Selenium imports
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+
+from ..cache import get_cache
 
 BASE_URL = "https://www.pro-football-reference.com/"
 
@@ -116,17 +116,17 @@ def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> Bea
         Parsed html of the specified endpoint.
     """
     cache = get_cache()
-    
+
     # Check cache first
     if use_cache:
         cached_page = cache.get_cached_page(endpoint)
         if cached_page is not None:
             print(f"📁 Using cached: {endpoint}")
             return cached_page
-    
+
     # Add delay to respect rate limits
     time.sleep(4)
-    
+
     for attempt in range(max_retries):
         if attempt > 0:
             wait_time = (2 ** attempt) * 3  # Exponential backoff: 6s, 12s, 24s
@@ -150,7 +150,7 @@ def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> Bea
                 response = scraper.get(BASE_URL + endpoint).text
                 uncommented = response.replace("<!--", "").replace("-->", "")
                 soup = BeautifulSoup(uncommented, "html.parser")
-                
+
                 # Check if we got a Cloudflare challenge page
                 title = soup.title.text if soup.title else ""
                 if "just a moment" in title.lower() or "challenge" in title.lower():
@@ -159,7 +159,7 @@ def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> Bea
                         continue  # Retry
                     else:
                         raise Exception(f"Cloudflare blocking after {max_retries} attempts")
-                
+
                 # Cache successful result
                 if use_cache:
                     cache.cache_page(endpoint, soup)
@@ -179,7 +179,7 @@ def get_page(endpoint: str, max_retries: int = 3, use_cache: bool = True) -> Bea
                     raise Exception(
                         f"Both Selenium and cloudscraper failed after {max_retries} attempts. Selenium: {selenium_error}. Cloudscraper: {cloudscraper_error}"
                     ) from cloudscraper_error
-    
+
     raise Exception(f"Failed to fetch page after {max_retries} attempts")
 
 
