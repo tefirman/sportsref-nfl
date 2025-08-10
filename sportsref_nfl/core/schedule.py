@@ -212,7 +212,7 @@ class Schedule:
         for ind in range(teams.shape[0]):
             team = teams.iloc[ind]
             print(team["abbrev"])
-            stadium_id = get_team_stadium(team["abbrev"], team["season"])
+            stadium_id = get_team_stadium(str(team["abbrev"]), int(team["season"]))
             address = get_address(stadium_id)
             coords = get_coordinates(address, zips)
             self.schedule.loc[
@@ -233,11 +233,13 @@ class Schedule:
         ]
         zips = download_zip_codes()
         for box in self.schedule.loc[neutral, "boxscore_abbrev"]:
-            stadium_id = get_game_stadium(box)
+            stadium_id = get_game_stadium(str(box))
             if stadium_id in ["", "attendance"]:
-                stad_name = self.schedule.loc[
-                    self.schedule.boxscore_abbrev == box, "Stadium"
-                ].values[0]
+                stad_name = str(
+                    self.schedule.loc[
+                        self.schedule.boxscore_abbrev == box, "Stadium"
+                    ].values[0]
+                )
                 intl_stads = {
                     "Wembley Stadium": "LON00",
                     "Tottenham Hotspur Stadium": "LON02",

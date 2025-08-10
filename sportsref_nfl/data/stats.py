@@ -64,7 +64,8 @@ def get_bulk_stats(
     for ind in range(schedule_df.shape[0]):
         if schedule_df.iloc[ind]["boxscore_abbrev"] not in stats.game_id.unique():
             print(schedule_df.iloc[ind]["boxscore_abbrev"])
-            b = Boxscore(schedule_df.iloc[ind]["boxscore_abbrev"])
+            game_id = str(schedule_df.iloc[ind]["boxscore_abbrev"])
+            b = Boxscore(game_id)
             stats = pd.concat([stats, b.game_stats], ignore_index=True)
             stats.season = stats.season.fillna(b.season)
             stats.week = stats.week.fillna(b.week)
