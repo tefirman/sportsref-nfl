@@ -57,9 +57,10 @@ def get_bulk_rosters(
     )
     for season in range(start_season, finish_season + 1):
         if season not in teams.season.unique():
-            for team in s.schedule.loc[
+            teams_in_season = s.schedule.loc[
                 s.schedule.season == season, "team1_abbrev"
-            ].unique():
+            ].unique()
+            for team in teams_in_season:
                 roster = get_roster(team, season)
                 roster["team"] = team
                 roster["season"] = season
