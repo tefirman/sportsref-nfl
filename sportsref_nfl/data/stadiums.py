@@ -77,22 +77,22 @@ def get_team_stadium(abbrev: str, season: int) -> str:
         stadiums = get_stadiums()
         stadiums.teams_abbrev = stadiums.teams_abbrev.str.split(", ")
         stadiums = stadiums.explode("teams_abbrev", ignore_index=True)
-        stadium_id = stadiums.loc[
+        stadium_matches = stadiums.loc[
             (stadiums.teams_abbrev == abbrev)
             & (stadiums.year_min <= season)
             & (stadiums.year_max >= season),
             "stadium_abbrev",
         ]
-        if stadium_id.shape[0] > 0:
-            stadium_id = stadium_id.values[0]
+        if stadium_matches.shape[0] > 0:
+            stadium_id = str(stadium_matches.values[0])
         else:
             print(f"Can't find home stadium for {season} {abbrev}...")
-            stadium_id = None
+            stadium_id = ""
     else:
         stadium_info = stadium_info[0]
         link = stadium_info.find("a")
         if link is not None and hasattr(link, "attrs") and "href" in link.attrs:
-            stadium_id = link.attrs["href"].split("/")[-1].split(".")[0]
+            stadium_id = str(link.attrs["href"].split("/")[-1].split(".")[0])
         else:
             stadium_id = ""
     return stadium_id or ""

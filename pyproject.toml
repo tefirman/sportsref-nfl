@@ -50,6 +50,7 @@ dev = [
     "pre-commit>=3.0.0",
     "types-requests>=2.25.0",
     "types-beautifulsoup4>=4.9.0",
+    "pandas-stubs>=2.0.0",
 ]
 
 [project.scripts]
@@ -89,3 +90,8 @@ python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+
+# Ignore missing stubs for external libraries
+[[tool.mypy.overrides]]
+module = ["cloudscraper", "geopy.*"]
+ignore_missing_imports = true

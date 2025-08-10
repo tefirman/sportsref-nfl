@@ -41,7 +41,8 @@ class NFLCache:
         if self.metadata_file.exists():
             try:
                 with open(self.metadata_file) as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    return data if isinstance(data, dict) else {}
             except (OSError, json.JSONDecodeError):
                 return {}
         return {}
@@ -113,11 +114,15 @@ class NFLCache:
         if cache_key not in self.metadata:
             return True
 
-        expires_at = self.metadata[cache_key].get("expires_at")
+        cache_entry = self.metadata[cache_key]
+        if not isinstance(cache_entry, dict):
+            return True
+
+        expires_at = cache_entry.get("expires_at")
         if expires_at is None:
             return False  # Never expires
 
-        return time.time() > expires_at
+        return bool(time.time() > expires_at)
 
     def get_cached_page(self, endpoint: str) -> Optional[BeautifulSoup]:
         """
@@ -204,7 +209,7 @@ class NFLCache:
     def cache_info(self) -> Dict[str, Any]:
         """Get cache information and statistics."""
         now = time.time()
-        stats = {
+        stats: Dict[str, Any] = {
             "total_files": len(self.metadata),
             "cache_dir": str(self.cache_dir),
             "size_mb": 0,
@@ -223,11 +228,22 @@ class NFLCache:
 
         # Count by type and expired files
         for _cache_key, metadata in self.metadata.items():
-            cache_type = metadata.get("cache_type", "unknown")
-            stats["by_type"][cache_type] = stats["by_type"].get(cache_type, 0) + 1
+            if not isinstance(metadata, dict):
+                continue
+
+            cache_type_val = metadata.get("cache_type", "unknown")
+            if isinstance(cache_type_val, str):
+                cache_type = cache_type_val
+            else:
+                cache_type = "unknown"
+
+            if cache_type in stats["by_type"]:
+                stats["by_type"][cache_type] += 1
+            else:
+                stats["by_type"][cache_type] = 1
 
             expires_at = metadata.get("expires_at")
-            if expires_at is not None and now > expires_at:
+            if expires_at is not None and isinstance(expires_at, (int, float)) and now > expires_at:
                 stats["expired"] += 1
 
         return stats

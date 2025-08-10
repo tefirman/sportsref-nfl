@@ -56,17 +56,17 @@ def get_depth_chart(team_abbrev: str) -> pd.DataFrame:
     depth.loc[depth.pos.isin(["PK"]), "pos"] = "K"
     depth = depth.loc[depth.player != "-"].reset_index(drop=True)
     for status in ["P", "Q", "O", "PUP", "SUSP", "IR"]:
-        injured = depth.player.str.endswith(" " + status)
-        depth.loc[injured, "status"] = status
-        depth.loc[injured, "player"] = (
-            depth.loc[injured, "player"].str.split(" ").str[:-1].apply(" ".join)
+        injured_mask = depth.player.str.endswith(" " + status)
+        depth.loc[injured_mask, "status"] = status
+        depth.loc[injured_mask, "player"] = (
+            depth.loc[injured_mask, "player"].str.split(" ").str[:-1].apply(" ".join)
         )
-    injured = depth.loc[depth.status.isin(["O", "PUP", "SUSP", "IR"])].reset_index(
+    injured_players = depth.loc[depth.status.isin(["O", "PUP", "SUSP", "IR"])].reset_index(
         drop=True
     )
-    injured.string = float("inf")
+    injured_players.string = float("inf")
     depth = pd.concat(
-        [depth.loc[~depth.status.isin(["O", "PUP", "SUSP", "IR"])], injured],
+        [depth.loc[~depth.status.isin(["O", "PUP", "SUSP", "IR"])], injured_players],
         ignore_index=True,
     )
     depth["string"] = depth.groupby("pos").string.rank(method="first")
@@ -101,8 +101,9 @@ def get_all_depth_charts() -> pd.DataFrame:
     teams["espn"] = teams.fivethirtyeight.str.replace("OAK", "LV")
     depths = pd.DataFrame(columns=["team"])
     for ind in range(teams.shape[0]):
+        team_espn = str(teams.loc[ind, "espn"])
         depths = pd.concat(
-            [depths, get_depth_chart(teams.loc[ind, "espn"])], ignore_index=True
+            [depths, get_depth_chart(team_espn)], ignore_index=True
         )
         depths.team = depths.team.fillna(teams.loc[ind, "real_abbrev"])
     return depths

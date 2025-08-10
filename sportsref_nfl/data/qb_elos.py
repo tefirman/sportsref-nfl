@@ -6,6 +6,7 @@ performance statistics and draft position.
 """
 
 import datetime
+from typing import Optional
 
 import pandas as pd
 
@@ -21,7 +22,7 @@ def get_qb_elos(
     qb_games: int = 10,
     team_games: int = 20,
     elo_adj: float = 3.3,
-    schedule_data: pd.DataFrame = None,
+    schedule_data: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """
     Pulls QB-related statistics and calculates QB elo ratings as they progress over time.
@@ -197,7 +198,7 @@ def get_qb_elos(
                 new.loc[ind, "VALUE"] / team_games
             )
     new["qb_adj"] = elo_adj * (new.qb_value_pre - new.team_qbvalue_avg)
-    return new[
+    result_df = new[
         [
             "game_id",
             "player",
@@ -210,3 +211,4 @@ def get_qb_elos(
             "VALUE",
         ]
     ]
+    return pd.DataFrame(result_df)
