@@ -87,6 +87,22 @@ class NFLCache:
                 pass
             return "live_season"
 
+        elif "teams/" in endpoint:
+            # Team pages (e.g., teams/den/2019.htm or teams/den/2019_roster.htm)
+            parts = endpoint.split("/")
+            if len(parts) >= 3:
+                filename = parts[-1]  # e.g., "2019.htm" or "2019_roster.htm"
+                year_part = filename.split(".")[0].split("_")[0]  # Extract year part
+                try:
+                    team_year = int(year_part)
+                    if team_year < current_year:
+                        return "historical"
+                    else:
+                        return "current_season"
+                except ValueError:
+                    pass
+            return "current_season"
+
         elif "draft" in endpoint:
             return "draft"
         elif "stadiums" in endpoint:
