@@ -111,7 +111,9 @@ class Schedule:
                 )
                 season_sched[["yards_win", "to_win", "yards_lose", "to_lose"]] = None
             if not season_sched.empty:
-                self.schedule = pd.concat([self.schedule, season_sched], ignore_index=True)
+                self.schedule = pd.concat(
+                    [self.schedule, season_sched], ignore_index=True
+                )
 
     def add_weeks(self) -> None:
         """
