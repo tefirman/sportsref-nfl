@@ -5,7 +5,7 @@ A Python library for scraping NFL statistics, schedules, and other data
 from Pro Football Reference (pro-football-reference.com).
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __author__ = "Taylor Firman"
 __email__ = "tefirman@gmail.com"
 

@@ -25,7 +25,7 @@ def get_intl_games() -> pd.DataFrame:
     """
     # Setting a proper User-Agent header to respect Wikipedia's robot policy
     headers = {
-        "User-Agent": "sportsref-nfl/0.1.2 (https://github.com/tefirman/sportsref-nfl; tefirman@gmail.com)"
+        "User-Agent": "sportsref-nfl (https://github.com/tefirman/sportsref-nfl; tefirman@gmail.com)"
     }
     response = requests.get(
         "https://en.wikipedia.org/wiki/NFL_International_Series", headers=headers
