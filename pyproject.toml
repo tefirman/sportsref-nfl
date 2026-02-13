@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sportsref-nfl"
-version = "0.1.3"
+version = "0.1.4"
 description = "NFL data scraping library for Pro Football Reference"
 authors = [
     {name = "Taylor Firman", email = "tefirman@gmail.com"}
