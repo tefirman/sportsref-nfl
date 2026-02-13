@@ -37,26 +37,26 @@ def get_intl_games() -> pd.DataFrame:
     # (rowspan artifacts from Wikipedia tables can create phantom rows)
     # Also filter dates without a day (e.g., "December" instead of "December 21")
     intl_games = intl_games.loc[
-        ~intl_games.Date.isnull()
-        & ~intl_games.Date.isin(["TBD", "TBA"])
-        & intl_games.Date.astype(str).str.contains(
+        ~intl_games["Date"].isnull()
+        & ~intl_games["Date"].isin(["TBD", "TBA"])
+        & intl_games["Date"].astype(str).str.contains(
             r"\d", regex=True
         )  # Must contain a digit (day)
         & ~intl_games["Designated home team"].isnull()
         & ~intl_games["Designated visitor"].isnull()
     ].reset_index(drop=True)
     # Clean Year column: split on space to remove citation brackets, then filter for numeric values
-    intl_games["Year_clean"] = intl_games.Year.astype(str).str.split(" ").str[0]
+    intl_games["Year_clean"] = intl_games["Year"].astype(str).str.split(" ").str[0]
     intl_games = intl_games.loc[intl_games["Year_clean"].str.isnumeric()].reset_index(
         drop=True
     )
-    intl_games.Year = intl_games["Year_clean"].astype(int)
+    intl_games["Year"] = intl_games["Year_clean"].astype(int)
     intl_games = intl_games.drop(columns=["Year_clean"])
     intl_games["team1"] = intl_games["Designated home team"].str.split(r"\[").str[0]
     intl_games["team2"] = intl_games["Designated visitor"].str.split(r"\[").str[0]
-    intl_games.Stadium = intl_games.Stadium.str.split(r"\[").str[0]
+    intl_games["Stadium"] = intl_games["Stadium"].str.split(r"\[").str[0]
     intl_games["game_date"] = pd.to_datetime(
-        intl_games.Date + ", " + intl_games.Year.astype(str)
+        intl_games["Date"] + ", " + intl_games["Year"].astype(str)
     )
     return intl_games[["game_date", "team1", "team2", "Stadium"]]
 
@@ -94,12 +94,12 @@ def get_team_stadium(abbrev: str, season: int) -> str:
     stadium_info = [val for val in team_info if val.text.startswith("Stadium:")]
     if len(stadium_info) == 0:
         stadiums = get_stadiums()
-        stadiums.teams_abbrev = stadiums.teams_abbrev.str.split(", ")
+        stadiums["teams_abbrev"] = stadiums["teams_abbrev"].str.split(", ")
         stadiums = stadiums.explode("teams_abbrev", ignore_index=True)
         stadium_matches = stadiums.loc[
-            (stadiums.teams_abbrev == abbrev)
-            & (stadiums.year_min <= season)
-            & (stadiums.year_max >= season),
+            (stadiums["teams_abbrev"] == abbrev)
+            & (stadiums["year_min"] <= season)
+            & (stadiums["year_max"] >= season),
             "stadium_abbrev",
         ]
         if stadium_matches.shape[0] > 0:
