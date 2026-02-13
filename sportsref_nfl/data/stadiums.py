@@ -39,15 +39,17 @@ def get_intl_games() -> pd.DataFrame:
     intl_games = intl_games.loc[
         ~intl_games.Date.isnull()
         & ~intl_games.Date.isin(["TBD", "TBA"])
-        & intl_games.Date.astype(str).str.contains(r"\d", regex=True)  # Must contain a digit (day)
+        & intl_games.Date.astype(str).str.contains(
+            r"\d", regex=True
+        )  # Must contain a digit (day)
         & ~intl_games["Designated home team"].isnull()
         & ~intl_games["Designated visitor"].isnull()
     ].reset_index(drop=True)
     # Clean Year column: split on space to remove citation brackets, then filter for numeric values
     intl_games["Year_clean"] = intl_games.Year.astype(str).str.split(" ").str[0]
-    intl_games = intl_games.loc[
-        intl_games["Year_clean"].str.isnumeric()
-    ].reset_index(drop=True)
+    intl_games = intl_games.loc[intl_games["Year_clean"].str.isnumeric()].reset_index(
+        drop=True
+    )
     intl_games.Year = intl_games["Year_clean"].astype(int)
     intl_games = intl_games.drop(columns=["Year_clean"])
     intl_games["team1"] = intl_games["Designated home team"].str.split(r"\[").str[0]

@@ -70,8 +70,10 @@ def get_page_selenium(endpoint: str) -> BeautifulSoup:
         try:
             # Wait up to 30 seconds for either the content to load or Cloudflare to resolve
             WebDriverWait(driver, 30).until(
-                lambda d: d.find_element(By.TAG_NAME, "table")
-                or "Just a moment" not in d.title
+                lambda d: (
+                    d.find_element(By.TAG_NAME, "table")
+                    or "Just a moment" not in d.title
+                )
             )
         except TimeoutException:
             print("⏰ Timeout waiting for page to load, proceeding anyway...")
