@@ -5,9 +5,8 @@ This module handles downloading and parsing depth charts
 for all NFL teams from ESPN's website.
 """
 
-import os
-
 import pandas as pd
+import requests
 from bs4 import BeautifulSoup
 
 
@@ -21,13 +20,10 @@ def get_depth_chart(team_abbrev: str) -> pd.DataFrame:
     Returns:
         DataFrame containing the depth chart ranking for each player on the team of interest.
     """
-    os.system(
-        f"wget https://www.espn.com/nfl/team/depth/_/name/{team_abbrev} -q -O {team_abbrev}.html"
-    )
-    tempData = open(team_abbrev + ".html")
-    response = tempData.read()
-    tempData.close()
-    os.remove(team_abbrev + ".html")
+    response = requests.get(
+        f"https://www.espn.com/nfl/team/depth/_/name/{team_abbrev}",
+        headers={"User-Agent": "sportsref-nfl"},
+    ).text
 
     soup = BeautifulSoup(response, "html.parser")
     tables = soup.find_all("table")
@@ -81,7 +77,7 @@ def get_depth_chart(team_abbrev: str) -> pd.DataFrame:
         how="left",
         on="player",
     )
-    to_fix = ~depth.new_name.isnull()
+    to_fix = ~depth.new_name.isna()
     depth.loc[to_fix, "player"] = depth.loc[to_fix, "new_name"]
     del depth["new_name"], depth["status"]
     depth = depth.sort_values(by=["pos", "string"], ignore_index=True)

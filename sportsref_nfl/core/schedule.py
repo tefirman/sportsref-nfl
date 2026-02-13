@@ -62,7 +62,7 @@ class Schedule:
             self.add_game_coords()
             self.add_travel()
             self.add_elo_columns(qbelo)
-            while self.schedule.elo1_pre.isnull().any():
+            while self.schedule.elo1_pre.isna().any():
                 self.next_init_elo()
                 self.next_elo_prob()
                 self.next_elo_delta()
@@ -158,8 +158,7 @@ class Schedule:
             home_loser, winner_list
         ].values
         away_loser = (
-            self.schedule.game_location.isnull()
-            | self.schedule.game_location.isin(["N"])
+            self.schedule.game_location.isna() | self.schedule.game_location.isin(["N"])
         )
         self.schedule.loc[away_loser, list1] = self.schedule.loc[
             away_loser, winner_list
@@ -194,7 +193,7 @@ class Schedule:
                 how="left",
                 on=["game_date", "team1", "team2"],
             )
-            bad = bad.loc[bad.boxscore_abbrev.isnull()]
+            bad = bad.loc[bad.boxscore_abbrev.isna()]
             print(bad)
 
     def add_team_coords(self) -> None:
@@ -363,7 +362,7 @@ class Schedule:
             init_elo: initial elo rating to provide new teams with, defaults to 1300.
             regress_pct: percentage to regress teams back to the mean between each season, defaults to 0.333.
         """
-        ind = self.schedule.loc[self.schedule.elo1_pre.isnull()].index[0]
+        ind = self.schedule.loc[self.schedule.elo1_pre.isna()].index[0]
         for team_num in ["1", "2"]:
             team = self.schedule.loc[ind, f"team{team_num}_abbrev"]
             prev = self.schedule.iloc[:ind].copy()
@@ -372,7 +371,7 @@ class Schedule:
                 # Team already exists
                 prev = prev.iloc[-1]
                 prev_num = 1 if prev["team1_abbrev"] == team else 2
-                if not pd.isnull(prev[f"elo{prev_num}_post"]):
+                if not pd.isna(prev[f"elo{prev_num}_post"]):
                     self.schedule.loc[ind, f"elo{team_num}_pre"] = prev[
                         f"elo{prev_num}_post"
                     ]
@@ -417,7 +416,7 @@ class Schedule:
             playoffs: elo rating expansion in the playoffs, defaults to 1.2.
             elo2points: conversion rate between elo and points, defaults to 0.04.
         """
-        ind = self.schedule.loc[self.schedule.elo_prob1.isnull()].index[0]
+        ind = self.schedule.loc[self.schedule.elo_prob1.isna()].index[0]
         self.schedule.loc[ind, "elo_diff"] = (
             self.schedule.loc[ind, "elo1_pre"] - self.schedule.loc[ind, "elo2_pre"]
         )
@@ -463,9 +462,9 @@ class Schedule:
             k_factor: scaling factor that dictates how much ratings should shift based on recent results, defaults to 20.
         """
         ind = self.schedule.loc[
-            ~self.schedule.elo_prob1.isnull() & self.schedule.elo_delta.isnull()
+            ~self.schedule.elo_prob1.isna() & self.schedule.elo_delta.isna()
         ].index[-1]
-        if not pd.isnull(self.schedule.loc[ind, "score1"]):
+        if not pd.isna(self.schedule.loc[ind, "score1"]):
             self.schedule.loc[ind, "score_diff"] = (
                 self.schedule.loc[ind, "score1"] - self.schedule.loc[ind, "score2"]
             )
@@ -479,7 +478,7 @@ class Schedule:
                 * 2.2
                 / (self.schedule.loc[ind, "elo_diff"] * 0.001 + 2.2)
             )
-            if pd.isnull(self.schedule.loc[ind, "mov_multiplier"]):
+            if pd.isna(self.schedule.loc[ind, "mov_multiplier"]):
                 self.schedule.loc[ind, "mov_multiplier"] = 0.0
             self.schedule.loc[ind, "elo_delta"] = (
                 self.schedule.loc[ind, "forecast_delta"]

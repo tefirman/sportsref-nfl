@@ -267,16 +267,16 @@ pip install -e ".[dev]"
 
 # Install pre-commit hooks (optional but recommended)
 pre-commit install
+```
 
-# Run tests
-pytest
+A `Makefile` is provided for common development tasks:
 
-# Run linting and formatting
-ruff check .
-ruff format .
-
-# Run type checking
-mypy sportsref_nfl --ignore-missing-imports
+```bash
+make lint       # Run ruff linter and format checks
+make typecheck  # Run mypy type checking
+make test       # Run pytest with coverage
+make check      # Run all of the above
+make format     # Auto-fix linting issues and reformat code
 ```
 
 ## Dependencies

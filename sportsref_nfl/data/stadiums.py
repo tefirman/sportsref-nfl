@@ -37,13 +37,13 @@ def get_intl_games() -> pd.DataFrame:
     # (rowspan artifacts from Wikipedia tables can create phantom rows)
     # Also filter dates without a day (e.g., "December" instead of "December 21")
     intl_games = intl_games.loc[
-        ~intl_games["Date"].isnull()
+        ~intl_games["Date"].isna()
         & ~intl_games["Date"].isin(["TBD", "TBA"])
         & intl_games["Date"]
         .astype(str)
         .str.contains(r"\d", regex=True)  # Must contain a digit (day)
-        & ~intl_games["Designated home team"].isnull()
-        & ~intl_games["Designated visitor"].isnull()
+        & ~intl_games["Designated home team"].isna()
+        & ~intl_games["Designated visitor"].isna()
     ].reset_index(drop=True)
     # Clean Year column: split on space to remove citation brackets, then filter for numeric values
     intl_games["Year_clean"] = intl_games["Year"].astype(str).str.split(" ").str[0]
