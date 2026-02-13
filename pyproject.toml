@@ -89,7 +89,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -99,7 +99,7 @@ disallow_untyped_defs = true
 module = ["cloudscraper", "geopy.*"]
 ignore_missing_imports = true
 
-# Disable strict DataFrame column checking
+# Allow dynamic DataFrame column access patterns
 [[tool.mypy.overrides]]
 module = ["sportsref_nfl.*"]
-disable_error_code = ["attr-defined", "assignment", "return-value", "union-attr"]
+disable_error_code = ["attr-defined"]
