@@ -33,6 +33,7 @@ dependencies = [
     "geopy>=2.1.0",
     "selenium>=4.0.0",
     "lxml>=4.6.0",
+    "urllib3>=1.26.0,<2.0.0",
 ]
 
 [project.urls]

@@ -33,10 +33,23 @@ def get_intl_games() -> pd.DataFrame:
     soup = BeautifulSoup(response, "html.parser")
     tables = soup.find_all("table", attrs={"class": "wikitable sortable"})[1:-1]
     intl_games = pd.concat(pd.read_html(StringIO(str(tables))), ignore_index=True)
+    # Filter out rows with invalid dates or missing team data
+    # (rowspan artifacts from Wikipedia tables can create phantom rows)
+    # Also filter dates without a day (e.g., "December" instead of "December 21")
     intl_games = intl_games.loc[
-        ~intl_games.Date.isnull() & ~intl_games.Date.isin(["TBD", "TBA"])
+        ~intl_games.Date.isnull()
+        & ~intl_games.Date.isin(["TBD", "TBA"])
+        & intl_games.Date.astype(str).str.contains(r"\d", regex=True)  # Must contain a digit (day)
+        & ~intl_games["Designated home team"].isnull()
+        & ~intl_games["Designated visitor"].isnull()
     ].reset_index(drop=True)
-    intl_games.Year = intl_games.Year.astype(str).str.split(" ").str[0].astype(int)
+    # Clean Year column: split on space to remove citation brackets, then filter for numeric values
+    intl_games["Year_clean"] = intl_games.Year.astype(str).str.split(" ").str[0]
+    intl_games = intl_games.loc[
+        intl_games["Year_clean"].str.isnumeric()
+    ].reset_index(drop=True)
+    intl_games.Year = intl_games["Year_clean"].astype(int)
+    intl_games = intl_games.drop(columns=["Year_clean"])
     intl_games["team1"] = intl_games["Designated home team"].str.split(r"\[").str[0]
     intl_games["team2"] = intl_games["Designated visitor"].str.split(r"\[").str[0]
     intl_games.Stadium = intl_games.Stadium.str.split(r"\[").str[0]
