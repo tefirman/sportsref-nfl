@@ -47,8 +47,8 @@ def get_bulk_stats(
                 schedule_data.season * 100 + schedule_data.week
                 <= finish_season * 100 + finish_week
             )
-            & ~schedule_data.score1.isnull()
-            & ~schedule_data.score2.isnull()
+            & ~schedule_data.score1.isna()
+            & ~schedule_data.score2.isna()
         ].reset_index(drop=True)
     else:
         # Fallback: If no schedule provided, we can't filter games properly

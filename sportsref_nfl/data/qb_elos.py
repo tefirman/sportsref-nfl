@@ -61,7 +61,7 @@ def get_qb_elos(
         missing = pd.concat(
             [
                 sched.loc[
-                    sched.score1.isnull() & sched.score2.isnull(),
+                    sched.score1.isna() & sched.score2.isna(),
                     [
                         "season",
                         "week_num",
@@ -78,7 +78,7 @@ def get_qb_elos(
                     }
                 ),
                 sched.loc[
-                    sched.score1.isnull() & sched.score2.isnull(),
+                    sched.score1.isna() & sched.score2.isna(),
                     [
                         "season",
                         "week_num",
@@ -164,7 +164,7 @@ def get_qb_elos(
                     ind, "qb_value_pre"
                 ] + regress_pct * avg_value
             new.loc[ind, "num_games"] = prev_qb.shape[0]
-        if pd.isnull(new.loc[ind, "VALUE"]):
+        if pd.isna(new.loc[ind, "VALUE"]):
             # Game hasn't been played yet
             new.loc[ind, "qb_value_post"] = new.loc[ind, "qb_value_pre"]
             new.loc[ind, "team_qbvalue_avg"] = by_team.loc[
