@@ -158,8 +158,7 @@ class Schedule:
             home_loser, winner_list
         ].values
         away_loser = (
-            self.schedule.game_location.isna()
-            | self.schedule.game_location.isin(["N"])
+            self.schedule.game_location.isna() | self.schedule.game_location.isin(["N"])
         )
         self.schedule.loc[away_loser, list1] = self.schedule.loc[
             away_loser, winner_list
