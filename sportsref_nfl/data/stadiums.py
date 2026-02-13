@@ -39,9 +39,9 @@ def get_intl_games() -> pd.DataFrame:
     intl_games = intl_games.loc[
         ~intl_games["Date"].isnull()
         & ~intl_games["Date"].isin(["TBD", "TBA"])
-        & intl_games["Date"].astype(str).str.contains(
-            r"\d", regex=True
-        )  # Must contain a digit (day)
+        & intl_games["Date"]
+        .astype(str)
+        .str.contains(r"\d", regex=True)  # Must contain a digit (day)
         & ~intl_games["Designated home team"].isnull()
         & ~intl_games["Designated visitor"].isnull()
     ].reset_index(drop=True)
