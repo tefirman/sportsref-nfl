@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - uses: actions/checkout@v4
@@ -39,8 +39,10 @@ jobs:
         # Format check with ruff
         ruff format --check --diff .
 
-    - name: Type check with mypy (Python 3.9+ only)
-      if: matrix.python-version != '3.8'
+    - name: Type check with mypy (Python 3.10+ only)
+      if: |
+        matrix.python-version != '3.8' &&
+        matrix.python-version != '3.9'
       run: |
         mypy sportsref_nfl --ignore-missing-imports
 
