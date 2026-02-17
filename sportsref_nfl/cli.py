@@ -110,6 +110,16 @@ Examples:
         help="Check if two names match",
     )
 
+    # FlareSolverr management command
+    flaresolverr_parser = subparsers.add_parser(
+        "flaresolverr", help="Manage FlareSolverr (Cloudflare bypass)"
+    )
+    flaresolverr_parser.add_argument(
+        "action",
+        choices=["start", "stop", "status"],
+        help="Action to perform",
+    )
+
     # Cache management commands
     cache_parser = subparsers.add_parser("cache", help="Cache management")
     cache_subparsers = cache_parser.add_subparsers(
@@ -345,6 +355,62 @@ def handle_names_command(args: argparse.Namespace) -> None:
         print("Please specify --normalize or --match option")
 
 
+def handle_flaresolverr_command(args: argparse.Namespace) -> None:
+    """Handle the flaresolverr command."""
+    import shutil
+    import subprocess
+
+    import requests as req
+
+    container_name = "flaresolverr"
+    image = "flaresolverr/flaresolverr:latest"
+
+    if args.action == "status":
+        try:
+            resp = req.get("http://localhost:8191/", timeout=3)
+            if resp.ok:
+                data = resp.json()
+                print(f"✅ FlareSolverr is running (v{data.get('version', '?')})")
+            else:
+                print("⚠️  FlareSolverr responded but may not be healthy")
+        except req.exceptions.ConnectionError:
+            print("❌ FlareSolverr is not running")
+            if shutil.which("docker"):
+                print("   Start it with: sportsref-nfl flaresolverr start")
+            else:
+                print("   Docker is not installed. Install Docker first.")
+
+    elif args.action == "start":
+        if shutil.which("docker") is None:
+            print("❌ Docker is not installed. Install Docker from https://docker.com")
+            sys.exit(1)
+
+        from .core.scraper import ensure_flaresolverr
+
+        if ensure_flaresolverr():
+            print("✅ FlareSolverr is running and ready")
+        else:
+            print("❌ Failed to start FlareSolverr")
+            print(
+                f"   Try manually: docker run -d --name {container_name} -p 8191:8191 {image}"
+            )
+            sys.exit(1)
+
+    elif args.action == "stop":
+        if shutil.which("docker") is None:
+            print("❌ Docker is not installed")
+            sys.exit(1)
+        try:
+            subprocess.run(
+                ["docker", "stop", container_name],
+                capture_output=True,
+                check=True,
+            )
+            print("✅ FlareSolverr stopped")
+        except subprocess.CalledProcessError:
+            print("⚠️  FlareSolverr container not found or already stopped")
+
+
 def handle_cache_command(args: argparse.Namespace) -> None:
     """Handle the cache command."""
     if args.cache_command == "info":
@@ -405,6 +471,8 @@ def main() -> None:
             handle_stadiums_command(args)
         elif args.command == "names":
             handle_names_command(args)
+        elif args.command == "flaresolverr":
+            handle_flaresolverr_command(args)
         elif args.command == "cache":
             handle_cache_command(args)
         else:

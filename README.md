@@ -12,7 +12,7 @@ A comprehensive Python library for scraping NFL data from Pro Football Reference
 - **Stadium Data**: Stadium information including locations and capacities
 - **Advanced Metrics**: ELO ratings for team strength analysis
 - **Name Utilities**: Player name normalization and matching
-- **Robust Scraping**: Built-in retry logic and error handling
+- **Robust Scraping**: Cloudflare bypass via FlareSolverr with automatic fallback
 - **Command Line Interface**: Easy-to-use CLI for data extraction
 
 ## Installation
@@ -20,6 +20,32 @@ A comprehensive Python library for scraping NFL data from Pro Football Reference
 ```bash
 pip install sportsref-nfl
 ```
+
+### Cloudflare Bypass (Required)
+
+Pro Football Reference uses Cloudflare protection that blocks automated requests.
+This library uses [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) to bypass it.
+If Docker is installed, the library will **automatically start FlareSolverr** when needed.
+
+**Setup (one-time):**
+
+```bash
+# Install Docker: https://docs.docker.com/get-docker/
+# Then pull the FlareSolverr image:
+docker pull flaresolverr/flaresolverr:latest
+```
+
+That's it! The library handles starting/stopping the container automatically.
+You can also manage it manually via the CLI:
+
+```bash
+sportsref-nfl flaresolverr start    # Start FlareSolverr
+sportsref-nfl flaresolverr status   # Check if it's running
+sportsref-nfl flaresolverr stop     # Stop FlareSolverr
+```
+
+> **Note:** Without Docker/FlareSolverr, the library falls back to `cloudscraper`,
+> which may be blocked by Cloudflare depending on the site's current protection level.
 
 ## Quick Start
 
@@ -211,6 +237,11 @@ sportsref-nfl stadiums
 # Name utilities
 sportsref-nfl names --normalize "Josh Allen"
 sportsref-nfl names --match "Josh Allen" "J. Allen"
+
+# FlareSolverr management
+sportsref-nfl flaresolverr start
+sportsref-nfl flaresolverr status
+sportsref-nfl flaresolverr stop
 ```
 
 ## ELO Rating System
@@ -232,14 +263,17 @@ elo_data = schedule.schedule[['home_team', 'away_team', 'elo_diff', 'elo_prob_ho
 
 ## Error Handling and Retries
 
-The library includes robust error handling:
+The library includes robust error handling with automatic retry and exponential backoff:
+
+1. **Cache** is checked first for previously fetched pages
+2. **FlareSolverr** is tried (auto-started via Docker if available)
+3. **cloudscraper** is used as a fallback
+4. Failed requests are retried with exponential backoff (6s, 12s, 24s)
 
 ```python
-from sportsref_nfl.core import ScrapingError
-
 try:
     schedule = sr.Schedule(2024, 2024)
-except ScrapingError as e:
+except Exception as e:
     print(f"Scraping failed: {e}")
 ```
 
@@ -281,12 +315,15 @@ make format     # Auto-fix linting issues and reformat code
 
 ## Dependencies
 
-- `cloudscraper>=1.2.0` - Bypass Cloudflare protection
 - `requests>=2.25.0` - HTTP requests
 - `beautifulsoup4>=4.9.0` - HTML parsing
 - `pandas>=1.3.0` - Data manipulation
 - `numpy>=1.20.0` - Numerical computations
 - `geopy>=2.1.0` - Geographic calculations
+- `cloudscraper>=1.2.0` - Fallback Cloudflare bypass
+
+**Optional (recommended):**
+- [Docker](https://docs.docker.com/get-docker/) + [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) - Primary Cloudflare bypass
 
 ## Rate Limiting
 

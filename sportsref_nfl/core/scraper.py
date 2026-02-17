@@ -5,6 +5,8 @@ This module contains the base functions for making requests to Pro Football Refe
 and parsing HTML tables into pandas DataFrames.
 """
 
+import shutil
+import subprocess
 import sys
 import time
 
@@ -13,22 +15,96 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-# Selenium imports
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-
 from ..cache import get_cache
 
 BASE_URL = "https://www.pro-football-reference.com/"
+FLARESOLVERR_URL = "http://localhost:8191/v1"
+FLARESOLVERR_IMAGE = "flaresolverr/flaresolverr:latest"
+FLARESOLVERR_CONTAINER = "flaresolverr"
 
 
-def get_page_selenium(endpoint: str) -> BeautifulSoup:
+def ensure_flaresolverr() -> bool:
     """
-    Pulls down the raw html for the specified endpoint of Pro Football Reference using Selenium.
-    This helps bypass Cloudflare protection by using a real browser.
+    Checks if FlareSolverr is running and attempts to start it via Docker if not.
+
+    Returns:
+        True if FlareSolverr is available, False otherwise.
+    """
+    # Check if already running
+    try:
+        resp = requests.get("http://localhost:8191/", timeout=3)
+        if resp.ok:
+            return True
+    except requests.exceptions.ConnectionError:
+        pass
+
+    # Try to start via Docker
+    if shutil.which("docker") is None:
+        return False
+
+    print("🐳 Starting FlareSolverr via Docker...")
+    try:
+        # Check if container exists but is stopped
+        result = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                "--format",
+                "{{.State.Running}}",
+                FLARESOLVERR_CONTAINER,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            if result.stdout.strip() == "true":
+                return True  # Already running
+            # Container exists but stopped — restart it
+            subprocess.run(
+                ["docker", "start", FLARESOLVERR_CONTAINER],
+                capture_output=True,
+                check=True,
+            )
+        else:
+            # Container doesn't exist — create it
+            subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "-d",
+                    "--name",
+                    FLARESOLVERR_CONTAINER,
+                    "-p",
+                    "8191:8191",
+                    FLARESOLVERR_IMAGE,
+                ],
+                capture_output=True,
+                check=True,
+            )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+    # Wait for it to become ready
+    for _ in range(12):
+        time.sleep(5)
+        try:
+            resp = requests.get("http://localhost:8191/", timeout=3)
+            if resp.ok:
+                print("✅ FlareSolverr is ready!")
+                return True
+        except requests.exceptions.ConnectionError:
+            continue
+
+    print("⚠️  FlareSolverr started but not responding")
+    return False
+
+
+def get_page_flaresolverr(endpoint: str) -> BeautifulSoup:
+    """
+    Fetches a page using a local FlareSolverr instance to bypass Cloudflare protection.
+
+    Requires FlareSolverr running locally (e.g. via Docker):
+        docker run -d --name flaresolverr -p 8191:8191 flaresolverr/flaresolverr:latest
 
     Args:
         endpoint: relative location of the page to pull down.
@@ -36,72 +112,36 @@ def get_page_selenium(endpoint: str) -> BeautifulSoup:
     Returns:
         Parsed html of the specified endpoint.
     """
-    print(f"🌐 Using Selenium to fetch: {BASE_URL + endpoint}")
+    full_url = BASE_URL + endpoint
+    print(f"🌐 Using FlareSolverr to fetch: {full_url}")
 
-    # Set up Chrome options for headless browsing
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in background
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option("useAutomationExtension", False)
-
-    # Add a realistic User-Agent
-    chrome_options.add_argument(
-        "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    response = requests.post(
+        FLARESOLVERR_URL,
+        json={
+            "cmd": "request.get",
+            "url": full_url,
+            "maxTimeout": 60000,
+        },
+        timeout=90,
     )
+    data = response.json()
 
-    driver = None
-    try:
-        # Create WebDriver
-        driver = webdriver.Chrome(options=chrome_options)
+    if data["status"] != "ok":
+        raise Exception(f"FlareSolverr error: {data.get('message', data)}")
 
-        # Execute script to hide WebDriver presence
-        driver.execute_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
+    html = data["solution"]["response"]
 
-        # Navigate to the page
-        full_url = BASE_URL + endpoint
-        driver.get(full_url)
+    # Check if we still got a Cloudflare challenge page
+    soup = BeautifulSoup(html, "html.parser")
+    title = soup.title.text if soup.title else ""
+    if "just a moment" in title.lower() or "challenge" in title.lower():
+        raise Exception(f"FlareSolverr did not solve Cloudflare challenge: {title}")
 
-        # Wait for page to load and check for Cloudflare challenge
-        try:
-            # Wait up to 30 seconds for either the content to load or Cloudflare to resolve
-            WebDriverWait(driver, 30).until(
-                lambda d: (
-                    d.find_element(By.TAG_NAME, "table")
-                    or "Just a moment" not in d.title
-                )
-            )
-        except TimeoutException:
-            print("⏰ Timeout waiting for page to load, proceeding anyway...")
+    print(f"✅ Successfully loaded page: {title}")
 
-        # Additional wait to ensure Cloudflare challenge is resolved
-        time.sleep(5)
-
-        # Get the page source
-        html = driver.page_source
-
-        # Check if we still have Cloudflare challenge
-        if "Just a moment" in driver.title or "challenge" in html.lower():
-            raise Exception("Cloudflare challenge not resolved after waiting")
-
-        print(f"✅ Successfully loaded page: {driver.title}")
-
-    except WebDriverException as e:
-        raise Exception(f"Selenium WebDriver error: {e}") from e
-    except Exception as e:
-        raise Exception(f"Failed to load page with Selenium: {e}") from e
-    finally:
-        if driver:
-            driver.quit()
-
-    # Process the HTML same way as before
+    # Remove HTML comments to expose hidden tables (PFR convention)
     uncommented = html.replace("<!--", "").replace("-->", "")
-    soup = BeautifulSoup(uncommented, "html.parser")
-    return soup
+    return BeautifulSoup(uncommented, "html.parser")
 
 
 def get_page(
@@ -109,7 +149,8 @@ def get_page(
 ) -> BeautifulSoup:
     """
     Pulls down the raw html for the specified endpoint of Pro Football Reference.
-    First checks cache, then tries Selenium to bypass Cloudflare, falls back to cloudscraper if needed.
+    First checks cache, then tries FlareSolverr to bypass Cloudflare,
+    falls back to cloudscraper if FlareSolverr is not available.
 
     Args:
         endpoint: relative location of the page to pull down.
@@ -131,6 +172,9 @@ def get_page(
     # Add delay to respect rate limits
     time.sleep(4)
 
+    # Ensure FlareSolverr is running (auto-starts via Docker if possible)
+    flaresolverr_available = ensure_flaresolverr()
+
     for attempt in range(max_retries):
         if attempt > 0:
             wait_time = (2**attempt) * 3  # Exponential backoff: 6s, 12s, 24s
@@ -139,54 +183,60 @@ def get_page(
             )
             time.sleep(wait_time)
 
-        # Try Selenium first (better for Cloudflare)
-        try:
-            soup = get_page_selenium(endpoint)
-            # Cache successful result
-            if use_cache:
-                cache.cache_page(endpoint, soup)
-            return soup
-        except Exception as selenium_error:
-            print(f"⚠️  Selenium failed: {selenium_error}")
-            print("🔄 Falling back to cloudscraper...")
-
-            # Fall back to original cloudscraper method
+        # Try FlareSolverr first (best for Cloudflare)
+        if flaresolverr_available:
             try:
-                scraper = cloudscraper.create_scraper()
-                response = scraper.get(BASE_URL + endpoint).text
-                uncommented = response.replace("<!--", "").replace("-->", "")
-                soup = BeautifulSoup(uncommented, "html.parser")
-
-                # Check if we got a Cloudflare challenge page
-                title = soup.title.text if soup.title else ""
-                if "just a moment" in title.lower() or "challenge" in title.lower():
-                    print(f"⚠️  Cloudscraper got Cloudflare challenge: {title}")
-                    if attempt < max_retries - 1:
-                        continue  # Retry
-                    else:
-                        raise Exception(
-                            f"Cloudflare blocking after {max_retries} attempts"
-                        )
-
+                soup = get_page_flaresolverr(endpoint)
                 # Cache successful result
                 if use_cache:
                     cache.cache_page(endpoint, soup)
                 return soup
             except requests.exceptions.ConnectionError:
-                print("GETTING CONNECTION ERROR AGAIN!!!")
-                print(endpoint)
+                print("⚠️  FlareSolverr connection lost")
+                flaresolverr_available = False
+                print("🔄 Falling back to cloudscraper...")
+            except Exception as flaresolverr_error:
+                print(f"⚠️  FlareSolverr failed: {flaresolverr_error}")
+                print("🔄 Falling back to cloudscraper...")
+
+        # Fall back to cloudscraper method
+        try:
+            scraper = cloudscraper.create_scraper()
+            response = scraper.get(BASE_URL + endpoint).text
+            uncommented = response.replace("<!--", "").replace("-->", "")
+            soup = BeautifulSoup(uncommented, "html.parser")
+
+            # Check if we got a Cloudflare challenge page
+            title = soup.title.text if soup.title else ""
+            if "just a moment" in title.lower() or "challenge" in title.lower():
+                print(f"⚠️  Cloudscraper got Cloudflare challenge: {title}")
                 if attempt < max_retries - 1:
                     continue  # Retry
                 else:
-                    sys.exit(1)
-            except Exception as cloudscraper_error:
-                if attempt < max_retries - 1:
-                    print(f"⚠️  Attempt {attempt + 1} failed: {cloudscraper_error}")
-                    continue  # Retry
-                else:
-                    raise Exception(
-                        f"Both Selenium and cloudscraper failed after {max_retries} attempts. Selenium: {selenium_error}. Cloudscraper: {cloudscraper_error}"
-                    ) from cloudscraper_error
+                    raise Exception(f"Cloudflare blocking after {max_retries} attempts")
+
+            # Cache successful result
+            if use_cache:
+                cache.cache_page(endpoint, soup)
+            return soup
+        except requests.exceptions.ConnectionError:
+            print("GETTING CONNECTION ERROR AGAIN!!!")
+            print(endpoint)
+            if attempt < max_retries - 1:
+                continue  # Retry
+            else:
+                sys.exit(1)
+        except Exception as cloudscraper_error:
+            if attempt < max_retries - 1:
+                print(f"⚠️  Attempt {attempt + 1} failed: {cloudscraper_error}")
+                continue  # Retry
+            else:
+                raise Exception(
+                    f"Both FlareSolverr and cloudscraper failed after {max_retries} attempts. "
+                    f"Cloudscraper: {cloudscraper_error}. "
+                    f"To bypass Cloudflare, install Docker and run: "
+                    f"docker pull {FLARESOLVERR_IMAGE}"
+                ) from cloudscraper_error
 
     raise Exception(f"Failed to fetch page after {max_retries} attempts")
 
