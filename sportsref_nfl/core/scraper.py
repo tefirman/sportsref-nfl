@@ -46,7 +46,13 @@ def ensure_flaresolverr() -> bool:
     try:
         # Check if container exists but is stopped
         result = subprocess.run(
-            ["docker", "inspect", "--format", "{{.State.Running}}", FLARESOLVERR_CONTAINER],
+            [
+                "docker",
+                "inspect",
+                "--format",
+                "{{.State.Running}}",
+                FLARESOLVERR_CONTAINER,
+            ],
             capture_output=True,
             text=True,
         )
@@ -63,9 +69,13 @@ def ensure_flaresolverr() -> bool:
             # Container doesn't exist — create it
             subprocess.run(
                 [
-                    "docker", "run", "-d",
-                    "--name", FLARESOLVERR_CONTAINER,
-                    "-p", "8191:8191",
+                    "docker",
+                    "run",
+                    "-d",
+                    "--name",
+                    FLARESOLVERR_CONTAINER,
+                    "-p",
+                    "8191:8191",
                     FLARESOLVERR_IMAGE,
                 ],
                 capture_output=True,
@@ -203,9 +213,7 @@ def get_page(
                 if attempt < max_retries - 1:
                     continue  # Retry
                 else:
-                    raise Exception(
-                        f"Cloudflare blocking after {max_retries} attempts"
-                    )
+                    raise Exception(f"Cloudflare blocking after {max_retries} attempts")
 
             # Cache successful result
             if use_cache:

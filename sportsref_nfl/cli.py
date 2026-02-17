@@ -376,7 +376,7 @@ def handle_flaresolverr_command(args: argparse.Namespace) -> None:
         except req.exceptions.ConnectionError:
             print("❌ FlareSolverr is not running")
             if shutil.which("docker"):
-                print(f"   Start it with: sportsref-nfl flaresolverr start")
+                print("   Start it with: sportsref-nfl flaresolverr start")
             else:
                 print("   Docker is not installed. Install Docker first.")
 
@@ -391,7 +391,9 @@ def handle_flaresolverr_command(args: argparse.Namespace) -> None:
             print("✅ FlareSolverr is running and ready")
         else:
             print("❌ Failed to start FlareSolverr")
-            print(f"   Try manually: docker run -d --name {container_name} -p 8191:8191 {image}")
+            print(
+                f"   Try manually: docker run -d --name {container_name} -p 8191:8191 {image}"
+            )
             sys.exit(1)
 
     elif args.action == "stop":
