@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-14
+
+### Added
+- FlareSolverr integration for bypassing Cloudflare protection on Pro Football Reference
+- Auto-start Docker container: library automatically starts FlareSolverr when needed
+- CLI commands for FlareSolverr management: `sportsref-nfl flaresolverr start/stop/status`
+
+### Changed
+- Scraping flow now uses FlareSolverr as primary method with cloudscraper as fallback
+- Removed Selenium/undetected-chromedriver dependencies
+- Updated README with Cloudflare bypass setup instructions and new dependencies
+
+### Fixed
+- Cloudflare blocking all automated requests to Pro Football Reference
+
 ## [0.1.4] - 2026-02-13
 
 ### Fixed
